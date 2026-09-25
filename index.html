@@ -199,6 +199,34 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 .progress{height:3px;background:var(--accent);position:absolute;top:0;left:0;z-index:600;transition:width .3s}
 .off{background:var(--st-callback);color:#fff;font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px}
 .results .tile{grid-template-columns:5px 1fr auto}
+/* Cartographie dirigeants / sociétés liées */
+.carto{position:relative;margin-top:14px}
+.carto svg{position:absolute;inset:0;overflow:visible;pointer-events:none}
+.carto svg path{fill:none;stroke:var(--line);stroke-width:1.6}
+.cnode{position:absolute;border-radius:10px;padding:6px 9px;text-align:left;display:flex;flex-direction:column;justify-content:center;overflow:hidden;border:1px solid var(--line);background:var(--surface);font-size:12.5px;line-height:1.25}
+.cnode b{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cnode span{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cnode.root{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-size:14px}
+.cnode.root span{color:inherit;opacity:.85}
+.cnode.co{background:var(--accent-soft);border-color:transparent}
+.cnode.pp{border-radius:22px;border-color:color-mix(in srgb,var(--coral) 55%,var(--line));padding-left:12px}
+.cnode.pm{border-style:solid;border-color:var(--accent);border-width:1.5px}
+.cnode.closed{background:var(--surface2);opacity:.7}
+.cnode.closed b{text-decoration:line-through;text-decoration-color:var(--muted)}
+.cnote{position:absolute;font-size:12px;color:var(--muted);display:flex;align-items:center}
+.clegend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin-top:10px}
+.clegend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px}
+.pp-box{margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.pp-head{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.pp-box .row{flex-wrap:nowrap}
+.btn.pp{flex:1;height:auto;min-height:48px;flex-direction:column;gap:1px;background:var(--surface2);color:var(--ink);padding:6px 10px}
+.btn.pp small{font-size:11px;font-weight:600;color:var(--coral)}
+table.fin{width:100%;border-collapse:collapse;font-size:13.5px}
+table.fin th{text-align:right;color:var(--muted);font-weight:600;font-size:12px;padding:4px 6px;border-bottom:1px solid var(--line)}
+table.fin td{text-align:right;padding:6px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.fin th:first-child,table.fin td:first-child{text-align:left}
+table.fin tr:last-child td{border-bottom:0}
+table.fin .neg{color:var(--st-refused)}
 .foot{color:var(--muted);font-size:12px;margin-top:24px;line-height:1.5}
 </style>
 </head>
@@ -269,6 +297,12 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
     <div class="card stack">
       <label class="f">Votre nom (repris dans les exports)<input id="set-name" autocomplete="name"></label>
     </div>
+    <h2>Pappers (optionnel)</h2>
+    <div class="card stack">
+      <label class="f">Clé API Pappers<input id="set-pappers" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="pappers.fr › Mon compte › API"></label>
+      <div class="row"><button class="btn ghost sm" id="btn-jetons">Voir mes jetons restants</button><button class="btn ghost sm" id="btn-pp-cache">Vider le cache Pappers</button></div>
+      <div class="co-sub" id="jetons-info">Sans clé, l'app n'utilise que les données publiques gratuites. Avec une clé, les boutons Pappers apparaissent dans les fiches ; un jeton n'est consommé que lorsque vous touchez un de ces boutons. Les résultats sont gardés 30 jours sur l'iPhone.</div>
+    </div>
     <h2>Données</h2>
     <div class="card stack">
       <div class="co-sub tabular" id="data-stats"></div>
@@ -307,7 +341,7 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
    - Carte : Leaflet + OpenStreetMap
    - Stockage : IndexedDB sur l'appareil (aucun serveur)
    ===================================================================== */
-const VERSION = "1.1.0";
+const VERSION = "1.3.0";
 const API = "https://recherche-entreprises.api.gouv.fr";
 const GEO_REVERSE = "https://data.geopf.fr/geocodage/reverse";
 
@@ -317,7 +351,7 @@ const STATUSES = {
   refused:{label:"Refus"}, signed:{label:"Signé"}
 };
 const STATUS_ORDER = ["interested","callback","refused","signed"];
-const SOLUTIONS = ["Zeendoc","Pennylane","Autre"];
+const SOLUTIONS = ["Zeendoc","Pennylane","Copieur","Téléphonie"];
 const RADII = [100,300,500,1000,2000,5000];
 
 const SECTIONS = {A:"Agriculture, pêche",B:"Industries extractives",C:"Industrie",D:"Énergie",E:"Eau, déchets",F:"Construction / BTP",G:"Commerce, auto",H:"Transport, logistique",I:"Hôtellerie, restauration",J:"Info & communication",K:"Finance, assurance",L:"Immobilier",M:"Conseil, juridique, technique",N:"Services aux entreprises",O:"Administration publique",P:"Enseignement",Q:"Santé, social",R:"Arts, loisirs",S:"Autres services",T:"Ménages",U:"Extraterritorial"};
@@ -368,7 +402,7 @@ function confirmBox(text, okLabel="Supprimer"){
 }
 
 /* ---------- Réglages (localStorage, avec garde-fous) ---------- */
-const DEFAULTS = {radius:300, employers:false, excludePublic:true, excludeGE:false, dept:"972", delay:3, name:"", sector:""};
+const DEFAULTS = {radius:300, employers:false, excludePublic:true, excludeGE:false, dept:"972", delay:3, name:"", sector:"", pappersToken:""};
 let settings = {...DEFAULTS};
 try{ settings = {...DEFAULTS, ...JSON.parse(localStorage.getItem("settings")||"{}")}; }catch(e){}
 function saveSettings(){ try{ localStorage.setItem("settings",JSON.stringify(settings)); }catch(e){} }
@@ -669,6 +703,10 @@ function openCompany(c){
     <button class="btn block" id="co-visit">Enregistrer une visite</button>
     <h2>Données SIRENE</h2>
     <div class="card">${companyBlock(c)}</div>
+    ${c.siren?`<button class="btn ghost block" id="co-carto" style="margin-top:12px">Cartographie gratuite (données publiques)</button>`:""}
+    ${c.siren&&settings.pappersToken?`<div class="pp-box"><div class="pp-head">Pappers</div><div class="row">
+      <button class="btn sm pp" id="co-pp-fiche">Fiche complète<small>${pCache("fiche:"+c.siren)?"déjà chargée · gratuit":"1 jeton"}</small></button>
+      <button class="btn sm pp" id="co-pp-carto">Cartographie<small>${pCache("carto:"+c.siren)?"déjà chargée · gratuit":"3 jetons"}</small></button></div></div>`:""}
     <div class="row links" style="margin-top:12px">
       <a class="btn ghost sm" href="https://maps.apple.com/?daddr=${c.lat},${c.lng}" target="_blank" rel="noopener">Itinéraire</a>
       <a class="btn ghost sm" href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank" rel="noopener">Téléphone / avis</a>
@@ -677,6 +715,204 @@ function openCompany(c){
     </div>`);
   $("#co-visit").onclick=()=>{ closeSheet(); openVisitForm(c); };
   if(lv) $("#co-last").onclick=()=>{ closeSheet(); openHistory(k, c); };
+  if(c.siren) $("#co-carto").onclick=()=>{ closeSheet(); openCarto(c); };
+  if(c.siren && settings.pappersToken){
+    $("#co-pp-fiche").onclick=()=>{ closeSheet(); openPappersFiche(c); };
+    $("#co-pp-carto").onclick=()=>{ closeSheet(); openPappersCarto(c); };
+  }
+}
+
+/* ---------- Cartographie (façon Pappers) ----------
+   Entreprise → ses dirigeants → les autres entreprises qu'ils dirigent.
+   Les mandats d'une personne sont recherchés par nom + 1er prénom + mois de naissance
+   (évite la plupart des homonymes). Source : RNE via l'API Recherche d'entreprises. */
+let cartoSeq = 0;
+const titleCase = s => String(s||"").toLowerCase().replace(/(^|[\s\-'])(\p{L})/gu,(m,a,b)=>a+b.toUpperCase()).replace(/-(De|Du|Des|La|Le|Les|Sur|En|Et)(?=-)/g,m=>m.toLowerCase());
+function coNode(ul){ return {siren:ul.siren, name:ul.nom_complet||ul.nom_raison_sociale||ul.siren, city:titleCase(ul.siege?.libelle_commune||""), naf:ul.activite_principale||"", active:ul.etat_administratif!=="C", ul}; }
+function openCarto(c){
+  const my = ++cartoSeq;
+  openModal({title:"Cartographie", html:`
+    <div class="co-name" style="font-size:18px;margin:0">${esc(c.legalName||c.name)}</div>
+    <div class="co-sub" id="carto-status">Chargement des dirigeants…</div>
+    <div class="carto" id="carto"></div>
+    <div class="clegend"><span><i style="background:var(--accent)"></i>Entreprise consultée</span><span><i style="border:1px solid var(--coral);border-radius:6px"></i>Dirigeant</span><span><i style="background:var(--accent-soft)"></i>Société liée</span><span><i style="background:var(--surface2);opacity:.7"></i>Fermée</span></div>
+    <p class="foot">Touchez une société pour ouvrir sa fiche. Mandats issus du Registre national des entreprises ; des homonymes restent possibles.</p>`});
+  buildCarto(c.siren, my);
+}
+async function buildCarto(siren, my){
+  const st = () => $("#carto-status"); const alive = () => my===cartoSeq && $("#modal").classList.contains("on");
+  let root, people=[];
+  const draw = () => { if(alive()) renderCarto(root, people); };
+  try{
+    const d = await apiGet("/search",{q:siren, per_page:5, limite_matching_etablissements:1});
+    const ul = (d.results||[]).find(r=>r.siren===siren) || d.results?.[0];
+    if(!ul) throw new Error("entreprise introuvable");
+    root = coNode(ul);
+    people = (ul.dirigeants||[]).slice(0,8).map(x=>{
+      const pm = x.type_dirigeant==="personne morale";
+      return {pm, name: pm ? (x.denomination||x.siren||"Société") : titleCase([ (x.prenoms||"").split(/[ ,]/)[0], x.nom ].filter(Boolean).join(" ")),
+              role:x.qualite||"", nom:x.nom, prenom:(x.prenoms||"").split(/[ ,]/)[0], dob:x.date_de_naissance||"", siren:x.siren, companies:[], state: pm ? "pm" : "loading"};
+    });
+    if(!alive()) return;
+    if(!people.length){ st().textContent = "Aucun dirigeant publié (entreprise individuelle ou données non diffusées)."; draw(); return; }
+    draw();
+    for(const p of people){
+      if(!alive()) return;
+      if(p.pm || !p.nom){ p.state="done"; continue; }
+      st().textContent = `Recherche des mandats de ${p.name}…`;
+      const params = {nom_personne:p.nom, prenoms_personne:p.prenom, type_personne:"dirigeant", per_page:15, limite_matching_etablissements:1};
+      if(/^\d{4}-\d{2}$/.test(p.dob)){ const [y,m]=p.dob.split("-").map(Number); params.date_naissance_personne_min=`${p.dob}-01`; params.date_naissance_personne_max=`${p.dob}-${String(new Date(y,m,0).getDate()).padStart(2,"0")}`; }
+      try{
+        const r = await apiGet("/search", params);
+        p.companies = (r.results||[]).filter(x=>x.siren!==siren).map(coNode).sort((a,b)=>(b.active-a.active)||a.name.localeCompare(b.name)).slice(0,10);
+        p.more = Math.max(0,(r.total_results||0) - 1 - p.companies.length);
+        p.state = "done";
+      }catch(e){ p.state="error"; }
+      draw(); await sleep(160);
+    }
+    if(!alive()) return;
+    const linked = new Set(people.flatMap(p=>p.companies.map(x=>x.siren)));
+    st().textContent = `${people.length} dirigeant${people.length>1?"s":""} · ${linked.size} autre${linked.size>1?"s":""} société${linked.size>1?"s":""} liée${linked.size>1?"s":""}`;
+  }catch(e){ if(alive()) st().textContent = "Cartographie indisponible : "+e.message; }
+}
+function renderCarto(root, people){
+  const el = $("#carto"); if(!el) return;
+  const W = Math.max(300, el.clientWidth || 340);
+  const rootH=54, rowH=50, nodeH=42, gapB=12, trunkX=12, pX=24, pW=Math.round((W-pX)*0.42), jX=pX+pW+12, cX=jX+12, cW=W-cX;
+  let html="", paths="", y=rootH+22;
+  html += `<div class="cnode root" style="left:0;top:0;width:${W}px;height:${rootH}px"><b>${esc(root.name)}</b><span>${esc([root.city, nafLabel(root.naf)].filter(Boolean).join(" · "))}</span></div>`;
+  let lastPy = rootH;
+  people.forEach((p,i)=>{
+    const n = Math.max(1, p.companies.length + (p.more>0?1:0));
+    const blockH = n*rowH - (rowH-nodeH);
+    const py = y + (blockH-nodeH)/2, pcy = py + nodeH/2;
+    html += `<button class="cnode ${p.pm?"pm co":"pp"}" data-p="${i}" style="left:${pX}px;top:${py}px;width:${pW}px;height:${nodeH}px" ${p.pm?"":"disabled"}><b>${esc(p.name)}</b><span>${esc(p.role||(p.pm?"Personne morale":""))}</span></button>`;
+    paths += `M${trunkX} ${lastPy} V${pcy} H${pX} `; lastPy = pcy;
+    if(p.companies.length){
+      p.companies.forEach((c,j)=>{
+        const cy = y + j*rowH, ccy = cy + nodeH/2;
+        html += `<button class="cnode co ${c.active?"":"closed"}" data-c="${i}-${j}" style="left:${cX}px;top:${cy}px;width:${cW}px;height:${nodeH}px"><b>${esc(c.name)}</b><span>${esc([c.city, c.active?"":"Fermée"].filter(Boolean).join(" · "))}</span></button>`;
+        paths += `M${pX+pW} ${pcy} H${jX} V${ccy} H${cX} `;
+      });
+      if(p.more>0){ const cy=y+p.companies.length*rowH; html += `<div class="cnote" style="left:${cX}px;top:${cy}px;height:${nodeH}px">+ ${p.more} autre${p.more>1?"s":""} (voir Pappers)</div>`; }
+    } else {
+      const label = p.state==="loading" ? "Recherche…" : p.state==="error" ? "Recherche impossible" : p.pm ? "Touchez pour ouvrir" : "Aucun autre mandat";
+      html += `<div class="cnote" style="left:${cX}px;top:${py}px;height:${nodeH}px">${label}</div>`;
+    }
+    y += blockH + gapB;
+  });
+  const H = people.length ? y - gapB : rootH;
+  el.style.height = H+"px";
+  el.innerHTML = `<svg width="${W}" height="${H}" aria-hidden="true"><path d="${paths}"/></svg>` + html;
+  el.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>{ const [i,j]=b.dataset.c.split("-").map(Number); const co=people[i].companies[j]; co.ul ? openFromUl(co.ul) : openBySiren(co.siren); });
+  el.querySelectorAll("[data-p]").forEach(b=>b.onclick=async()=>{ const p=people[+b.dataset.p]; if(!p.pm||!p.siren) return;
+    try{ const d=await apiGet("/search",{q:p.siren,per_page:5,limite_matching_etablissements:1}); const ul=(d.results||[]).find(r=>r.siren===p.siren); if(ul) openFromUl(ul); else toast("Société introuvable"); }catch(e){ toast("Recherche impossible"); } });
+}
+async function openBySiren(siren){
+  try{ const d=await apiGet("/search",{q:siren,per_page:5,limite_matching_etablissements:1}); const ul=(d.results||[]).find(r=>r.siren===siren); if(ul) openFromUl(ul); else toast("Société introuvable dans SIRENE"); }
+  catch(e){ toast("Recherche impossible : "+e.message); }
+}
+
+/* ---------- Pappers (optionnel, payant au jeton) ----------
+   Aucun appel n'est fait sans action explicite du commercial.
+   Résultats mis en cache 30 jours sur l'appareil : réafficher = 0 jeton. */
+const PAPPERS = "https://api.pappers.fr/v2";
+function pCache(key, val){
+  try{
+    if(val===undefined){ const o=JSON.parse(localStorage.getItem("pp:"+key)||"null"); return o && Date.now()-o.t < 30*864e5 ? o.d : null; }
+    localStorage.setItem("pp:"+key, JSON.stringify({t:Date.now(), d:val}));
+  }catch(e){ return null; }
+}
+async function pappers(path, params={}){
+  if(!settings.pappersToken) throw new Error("clé API Pappers absente (Réglages)");
+  const u = new URL(PAPPERS+path); u.searchParams.set("api_token", settings.pappersToken);
+  Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));
+  let r; try{ r = await fetch(u, {headers:{Accept:"application/json"}}); }catch(e){ throw new Error(navigator.onLine ? "Pappers injoignable depuis le navigateur" : "hors ligne"); }
+  if(r.status===401) throw new Error("clé API refusée ou jetons épuisés");
+  if(r.status===402 || r.status===403) throw new Error("plus de jetons disponibles");
+  if(r.status===404) throw new Error("entreprise introuvable sur Pappers");
+  if(r.status===429) throw new Error("trop de requêtes, réessayez");
+  if(!r.ok) throw new Error("Pappers "+r.status);
+  return r.json();
+}
+const eur = n => n==null||n==="" ? "" : fmtEur(+n);
+async function showJetons(){
+  const info=$("#jetons-info");
+  if(!settings.pappersToken){ info.textContent="Saisissez d'abord votre clé API."; return; }
+  info.textContent="Interrogation de Pappers…";
+  try{
+    const j = await pappers("/suivi-jetons");
+    const rows = Object.entries(j).filter(([k,v])=>v!=null && typeof v!=="object").map(([k,v])=>`<dt>${esc(k.replace(/_/g," "))}</dt><dd class="tabular">${esc(typeof v==="number"?v.toLocaleString("fr-FR"):v)}</dd>`).join("");
+    info.innerHTML = rows ? `<dl class="kv" style="grid-template-columns:1fr auto">${rows}</dl>` : "Réponse vide.";
+  }catch(e){ info.textContent = "Impossible : "+e.message; }
+}
+
+async function openPappersFiche(c){
+  const key="fiche:"+c.siren, cached=pCache(key);
+  openModal({title:"Pappers", html:`<div class="co-name" style="font-size:18px;margin:0">${esc(c.legalName||c.name)}</div><div class="co-sub" id="pp-st">${cached?"Données en cache (0 jeton)":"Chargement… (1 jeton)"}</div><div id="pp-body"></div>`});
+  try{
+    const d = cached || await pappers("/entreprise",{siren:c.siren});
+    if(!cached) pCache(key, d);
+    if(!$("#pp-body")) return;
+    $("#pp-st").textContent = cached ? "Données en cache (0 jeton)" : "1 jeton consommé · résultat gardé 30 jours";
+    const contact = [["Téléphone",d.telephone],["E-mail",d.email],["Site web",d.site_internet||d.site_web||(d.sites_internet||[])[0]]].filter(x=>x[1]);
+    const fin = (d.finances||[]).slice().sort((a,b)=>b.annee-a.annee).slice(0,5);
+    const reps = (d.representants||[]).slice(0,10);
+    const bens = (d.beneficiaires_effectifs||[]).slice(0,10);
+    const kv = (label,val) => val!=null && val!=="" ? `<dt>${esc(label)}</dt><dd>${esc(val)}</dd>` : "";
+    $("#pp-body").innerHTML = `
+      ${contact.length?`<h2>Contact</h2><div class="card"><dl class="kv">${contact.map(([l,v])=>`<dt>${l}</dt><dd>${l==="Site web"?`<a href="${esc(/^https?:/.test(v)?v:"https://"+v)}" target="_blank" rel="noopener">${esc(v)}</a>`:`<span style="user-select:text;-webkit-user-select:text">${esc(v)}</span>`}</dd>`).join("")}</dl></div>`:""}
+      <h2>Identité</h2><div class="card"><dl class="kv">
+        ${kv("Forme", d.forme_juridique)}${kv("Capital", d.capital_formate || eur(d.capital))}${kv("Création", d.date_creation_formate || d.date_creation)}
+        ${kv("Effectif", d.effectif || d.tranche_effectif)}${kv("Activité", d.libelle_code_naf)}${kv("Convention coll.", (d.conventions_collectives||[])[0]?.nom)}
+        ${kv("Siège", d.siege?.adresse_ligne_1 ? `${d.siege.adresse_ligne_1}, ${d.siege.code_postal||""} ${d.siege.ville||""}` : "")}
+      </dl></div>
+      ${fin.length?`<h2>Finances</h2><div class="card" style="overflow-x:auto"><table class="fin tabular"><tr><th>Année</th><th>CA</th><th>Résultat</th><th>Eff.</th></tr>${fin.map(f=>`<tr><td>${esc(f.annee)}</td><td>${eur(f.chiffre_affaires)}</td><td class="${f.resultat<0?"neg":""}">${eur(f.resultat)}</td><td>${esc(f.effectif??"")}</td></tr>`).join("")}</table></div>`:""}
+      ${reps.length?`<h2>Représentants</h2><div class="card"><dl class="kv">${reps.map(r=>`<dt>${esc(r.qualite||"")}</dt><dd>${esc(r.nom_complet||r.denomination||[r.prenom_usuel||r.prenom,r.nom].filter(Boolean).join(" "))}${r.age?` <span class="co-sub">· ${esc(r.age)} ans</span>`:""}</dd>`).join("")}</dl></div>`:""}
+      ${bens.length?`<h2>Bénéficiaires effectifs</h2><div class="card"><dl class="kv">${bens.map(b=>`<dt>${b.pourcentage_parts!=null?esc(b.pourcentage_parts)+" % parts":"Bénéficiaire"}</dt><dd>${esc(b.nom_complet||[b.prenom_usuel||b.prenom,b.nom].filter(Boolean).join(" "))}</dd>`).join("")}</dl></div>`:""}
+      <div style="height:14px"></div>
+      <a class="btn ghost block" href="https://www.pappers.fr/entreprise/${esc(c.siren)}" target="_blank" rel="noopener">Ouvrir sur pappers.fr</a>`;
+  }catch(e){ if($("#pp-st")) $("#pp-st").textContent = "Pappers : "+e.message; }
+}
+
+async function openPappersCarto(c){
+  const key="carto:"+c.siren, cached=pCache(key), my=++cartoSeq;
+  openModal({title:"Cartographie Pappers", html:`
+    <div class="co-name" style="font-size:18px;margin:0">${esc(c.legalName||c.name)}</div>
+    <div class="co-sub" id="carto-status">${cached?"Données en cache (0 jeton)":"Chargement… (3 jetons)"}</div>
+    <div class="carto" id="carto"></div>
+    <div class="clegend"><span><i style="background:var(--accent)"></i>Entreprise consultée</span><span><i style="border:1px solid var(--coral);border-radius:6px"></i>Dirigeant / bénéficiaire</span><span><i style="background:var(--accent-soft)"></i>Société liée</span></div>
+    <p class="foot">Touchez une société pour ouvrir sa fiche (gratuit). Source : Pappers.</p>`});
+  try{
+    const d = cached || await pappers("/entreprise/cartographie",{siren:c.siren, inclure_entreprises_dirigees:true, inclure_entreprises_citees:false, inclure_sci:true, autoriser_modifications:true});
+    if(!cached) pCache(key, d);
+    if(my!==cartoSeq || !$("#carto")) return;
+    const E=new Map((d.entreprises||[]).map(e=>[String(e.id),e])), P=new Map((d.personnes||[]).map(x=>[String(x.id),x]));
+    const rootE=(d.entreprises||[]).find(e=>e.siren===c.siren);
+    const rootId=rootE?String(rootE.id):null;
+    const links=(d.liens_entreprises_personnes||[]).map(a=>{ const arr=a.map(String); const eid=arr.find(x=>E.has(x)), pid=arr.find(x=>P.has(x)); return {eid,pid,qual:arr.find(x=>x!==eid&&x!==pid)||""}; }).filter(l=>l.eid&&l.pid);
+    const coOf = e => ({siren:e.siren, name:e.nom_entreprise||e.siren, city:"", active:true, ul:null});
+    const pName = x => titleCase([x.prenom,x.nom].filter(Boolean).join(" "));
+    let pids = [...new Set(links.filter(l=>l.eid===rootId).map(l=>l.pid))];
+    if(!pids.length) pids = [...P.values()].filter(x=>x.niveau===1).map(x=>String(x.id));
+    const people = pids.map(pid=>{
+      const all = links.filter(l=>l.pid===pid && l.eid!==rootId).map(l=>E.get(l.eid)).filter((e,i,a)=>e&&a.indexOf(e)===i).map(coOf).sort((a,b)=>a.name.localeCompare(b.name));
+      return {pm:false, name:pName(P.get(pid)), role:(links.find(l=>l.pid===pid&&l.eid===rootId)||{}).qual, companies:all.slice(0,12), more:Math.max(0,all.length-12), state:"done"};
+    });
+    const direct = (d.liens_entreprises_entreprises||[]).map(a=>a.map(String)).filter(a=>a.includes(rootId)).map(a=>E.get(a.find(x=>x!==rootId))).filter((e,i,a)=>e&&a.indexOf(e)===i).map(coOf);
+    const shown = new Set(people.flatMap(p=>p.companies.map(x=>x.siren)));
+    for(let i=direct.length-1;i>=0;i--) if(shown.has(direct[i].siren)) direct.splice(i,1);
+    if(direct.length) people.push({pm:true, name:"Sociétés liées", role:"Participations, holdings", companies:direct.slice(0,12), more:Math.max(0,direct.length-12), state:"done"});
+    renderCarto({name:c.legalName||c.name, city:"", naf:c.naf}, people);
+    const n = new Set(people.flatMap(p=>p.companies.map(x=>x.siren))).size;
+    $("#carto-status").textContent = `${cached?"En cache (0 jeton)":"3 jetons consommés"} · ${pids.length} personne${pids.length>1?"s":""} · ${n} société${n>1?"s":""} liée${n>1?"s":""}`;
+  }catch(e){ if($("#carto-status")) $("#carto-status").textContent = "Pappers : "+e.message; }
+}
+
+function openFromUl(ul){
+  const c = normalize(ul, ul.siege);
+  if(!c.diffusible){ toast("Données non diffusibles"); return; }
+  closeModal(); setTimeout(()=>openCompany(c), 220);
 }
 
 /* Liste des entreprises proches, triées par distance */
@@ -844,7 +1080,7 @@ function renderCalls(){
 }
 function renderSettings(){
   $("#set-employers").checked=settings.employers; $("#set-public").checked=settings.excludePublic; $("#set-ge").checked=settings.excludeGE;
-  $("#set-dept").value=settings.dept; $("#set-delay").value=String(settings.delay); $("#set-name").value=settings.name;
+  $("#set-dept").value=settings.dept; $("#set-delay").value=String(settings.delay); $("#set-name").value=settings.name; $("#set-pappers").value=settings.pappersToken||"";
   const companiesN = new Set(visits.map(v=>v.key)).size;
   $("#data-stats").textContent = `${visits.length} visite${visits.length>1?"s":""} · ${companiesN} entreprise${companiesN>1?"s":""} · stockées sur cet appareil`;
   $("#ver").textContent = "Version "+VERSION;
@@ -915,6 +1151,9 @@ $("#set-ge").onchange=e=>{ settings.excludeGE=e.target.checked; saveSettings(); 
 $("#set-dept").onchange=e=>{ settings.dept=e.target.value; saveSettings(); };
 $("#set-delay").onchange=e=>{ settings.delay=+e.target.value; saveSettings(); };
 $("#set-name").onchange=e=>{ settings.name=e.target.value.trim(); saveSettings(); };
+$("#set-pappers").onchange=e=>{ settings.pappersToken=e.target.value.trim(); saveSettings(); toast(settings.pappersToken?"Clé Pappers enregistrée":"Clé Pappers supprimée"); };
+$("#btn-jetons").onclick=showJetons;
+$("#btn-pp-cache").onclick=()=>{ try{ Object.keys(localStorage).filter(k=>k.startsWith("pp:")).forEach(k=>localStorage.removeItem(k)); }catch(e){} toast("Cache Pappers vidé"); };
 $("#btn-csv").onclick=exportCSV;
 $("#btn-backup").onclick=exportBackup;
 $("#restore-file").onchange=e=>{ const f=e.target.files[0]; if(f) importBackup(f); e.target.value=""; };

@@ -1,5 +1,5 @@
 /* Service worker — fonctionnement hors-ligne de l'application */
-const SHELL = "shell-v1.1.0";
+const SHELL = "shell-v1.3.0";
 const TILES = "tiles-v1";
 const ASSETS = ["./","index.html","manifest.webmanifest","icon-180.png","icon-192.png","icon-512.png",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css",

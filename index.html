@@ -227,6 +227,18 @@ table.fin td{text-align:right;padding:6px;border-bottom:1px solid var(--line);wh
 table.fin th:first-child,table.fin td:first-child{text-align:left}
 table.fin tr:last-child td{border-bottom:0}
 table.fin .neg{color:var(--st-refused)}
+details.equip{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:0 12px}
+details.equip summary{list-style:none;cursor:pointer;padding:13px 0;font-weight:650;display:flex;align-items:center;gap:6px}
+details.equip summary::-webkit-details-marker{display:none}
+details.equip summary::after{content:"";margin-left:auto;width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .2s}
+details.equip[open] summary::after{transform:rotate(-135deg)}
+details.equip[open]{padding-bottom:14px}
+.etabs{display:flex;background:var(--surface2);border-radius:10px;padding:3px;margin-bottom:12px}
+.etabs button{flex:1;border:0;background:none;border-radius:8px;padding:8px 4px;font-weight:600;font-size:13.5px;color:var(--muted);position:relative}
+.etabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.etabs button i{position:absolute;top:5px;right:6px;width:7px;height:7px;border-radius:50%;background:var(--coral)}
+.due{font-size:11.5px;font-weight:700;color:#fff;background:var(--st-callback);border-radius:999px;padding:1px 7px;margin-left:4px;white-space:nowrap}
+.due.past{background:var(--st-refused)}
 .foot{color:var(--muted);font-size:12px;margin-top:24px;line-height:1.5}
 </style>
 </head>
@@ -341,7 +353,7 @@ table.fin .neg{color:var(--st-refused)}
    - Carte : Leaflet + OpenStreetMap
    - Stockage : IndexedDB sur l'appareil (aucun serveur)
    ===================================================================== */
-const VERSION = "1.3.0";
+const VERSION = "1.4.0";
 const API = "https://recherche-entreprises.api.gouv.fr";
 const GEO_REVERSE = "https://data.geopf.fr/geocodage/reverse";
 
@@ -963,13 +975,68 @@ function openSearch(prefill=""){
   setTimeout(()=>inp.focus(),300); if(prefill) run();
 }
 
+/* ---------- Bloc « Équipement » (facultatif) ----------
+   Parc existant du prospect : copieur, GED (Zeendoc), comptabilité.
+   Aucun champ obligatoire. Repris automatiquement de la dernière visite de l'entreprise. */
+const EQUIP = [
+  {k:"copieur", label:"Copieur", fields:[
+    {k:"prestataire", label:"Prestataire", ph:"Ex. Canon, Ricoh, Konica…"},
+    {k:"fin", label:"Fin de contrat", type:"month"},
+    {k:"parc", label:"Parc", type:"area", ph:"Nombre de machines, loyers, coût page…", help:"Indiquez : nombre de machines, loyers, coût page (N&B / couleur)"}]},
+  {k:"ged", label:"Zeendoc", fields:[
+    {k:"solution", label:"Solution en place", ph:"GED actuelle, serveur, papier…"},
+    {k:"prestataire", label:"Prestataire"},
+    {k:"fin", label:"Fin de contrat", type:"month"},
+    {k:"note", label:"Note", type:"area", ph:"Volumes, irritants, besoins…"}]},
+  {k:"compta", label:"Comptabilité", fields:[
+    {k:"logiciel", label:"Logiciel", ph:"Ex. Sage, EBP, Cegid, cabinet…"},
+    {k:"fin", label:"Fin de contrat", type:"month"}]}
+];
+function normEquip(e){ const o={}; for(const g of EQUIP){ o[g.k]={}; for(const f of g.fields) o[g.k][f.k]=(e?.[g.k]?.[f.k]||"").toString(); } return o; }
+const equipFilled = (e,g) => Object.values(e?.[g]||{}).some(x=>String(x).trim());
+function fmtMonth(ym){ if(!/^\d{4}-\d{2}/.test(ym||"")) return ym||""; const [y,m]=ym.split("-").map(Number); return new Date(y,m-1,1).toLocaleDateString("fr-FR",{month:"long",year:"numeric"}); }
+function monthsLeft(ym){ if(!/^\d{4}-\d{2}/.test(ym||"")) return null; const [y,m]=ym.split("-").map(Number); const n=new Date(); return (y-n.getFullYear())*12+(m-1-n.getMonth()); }
+function equipForm(e){
+  const any = EQUIP.some(g=>equipFilled(e,g.k));
+  return `<details class="equip" id="v-equip" ${any?"open":""}>
+    <summary>Équipement <span class="co-sub">(facultatif)</span></summary>
+    <div class="etabs" role="tablist">${EQUIP.map((g,i)=>`<button type="button" role="tab" data-t="${g.k}" aria-selected="${i===0}">${g.label}<i ${equipFilled(e,g.k)?"":"hidden"}></i></button>`).join("")}</div>
+    ${EQUIP.map((g,i)=>`<div class="epane stack" data-p="${g.k}" ${i===0?"":"hidden"}>${g.fields.map(f=>{
+      const id=`eq-${g.k}-${f.k}`, val=esc(e[g.k][f.k]);
+      const input = f.type==="area" ? `<textarea id="${id}" placeholder="${esc(f.ph||"")}" style="min-height:90px">${val}</textarea>`
+        : `<input id="${id}" type="${f.type||"text"}" value="${val}" placeholder="${esc(f.ph||"")}">`;
+      return `<label class="f">${f.label}${input}${f.help?`<span class="co-sub" style="font-weight:400">${esc(f.help)}</span>`:""}</label>`;
+    }).join("")}</div>`).join("")}
+  </details>`;
+}
+function bindEquipForm(){
+  const box=$("#v-equip"); if(!box) return;
+  box.querySelector(".etabs").onclick=ev=>{ const b=ev.target.closest("[data-t]"); if(!b) return;
+    box.querySelectorAll(".etabs button").forEach(x=>x.setAttribute("aria-selected", x===b));
+    box.querySelectorAll(".epane").forEach(p=>p.hidden = p.dataset.p!==b.dataset.t); };
+  box.addEventListener("input",()=>{ const cur=readEquipForm(); box.querySelectorAll(".etabs button").forEach(b=>b.querySelector("i").hidden=!equipFilled(cur,b.dataset.t)); });
+}
+function readEquipForm(){ const o={}; for(const g of EQUIP){ o[g.k]={}; for(const f of g.fields) o[g.k][f.k]=($(`#eq-${g.k}-${f.k}`)?.value||"").trim(); } return o; }
+function equipDetail(e){
+  if(!e) return "";
+  const groups = EQUIP.filter(g=>equipFilled(e,g.k));
+  if(!groups.length) return "";
+  return `<div><h2>Équipement</h2><div class="stack">${groups.map(g=>`<div class="card"><div style="font-weight:700;margin-bottom:6px">${g.label}</div><dl class="kv">${g.fields.filter(f=>e[g.k][f.k]).map(f=>{
+    let val = esc(e[g.k][f.k]);
+    if(f.type==="month"){ const ml=monthsLeft(e[g.k][f.k]); val = esc(fmtMonth(e[g.k][f.k])) + (ml==null?"":ml<0?` <span class="due past">échu</span>`:ml<=6?` <span class="due">dans ${ml} mois</span>`:""); }
+    if(f.type==="area") val = `<span style="white-space:pre-wrap">${val}</span>`;
+    return `<dt>${f.label}</dt><dd>${val}</dd>`; }).join("")}</dl></div>`).join("")}</div></div>`;
+}
+
 /* ---------- Formulaire de visite ---------- */
 function openVisitForm(c, existing){
   const v = existing ? {...existing} : {
     id:uid(), key:c.key||c.siret, siret:c.siret||"", siren:c.siren||"", name:c.name||"", address:c.address||"", lat:c.lat, lng:c.lng,
     naf:c.naf||"", nafLabel:nafLabel(c.naf), forme:formeLabel(c.forme), effectif:EFFECTIFS[c.effectifUl]||"", dirigeant:c.dirigeants?.[0]?`${c.dirigeants[0].who} (${c.dirigeants[0].role})`:"",
-    manual:!!c.manual, date:new Date().toISOString(), status:"", contactName:"", contactRole:"", contactPhone:"", contactEmail:"", solutions:[], notes:"", callbackDate:""
+    manual:!!c.manual, date:new Date().toISOString(), status:"", contactName:"", contactRole:"", contactPhone:"", contactEmail:"", solutions:[], notes:"", callbackDate:"",
+    equip: JSON.parse(JSON.stringify(visitsFor(c.key||c.siret).find(x=>x.equip)?.equip || {}))  // reprise de l'équipement connu
   };
+  v.equip = normEquip(v.equip);
   const manual = v.manual;
   openModal({title: existing?"Modifier la visite":"Nouvelle visite", left:"Annuler", right:"Enregistrer", onRight:()=>save(), html:`
     <div class="stack">
@@ -986,6 +1053,7 @@ function openVisitForm(c, existing){
       <label class="f">Téléphone<input id="v-cphone" type="tel" value="${esc(v.contactPhone)}" autocomplete="tel"></label>
       <label class="f">E-mail<input id="v-cemail" type="email" value="${esc(v.contactEmail)}" autocomplete="email" autocapitalize="off"><span class="err" id="v-email-err" hidden>Adresse e-mail invalide</span></label>
       <label class="f">Notes<textarea id="v-notes" placeholder="Besoin, outils actuels, prochaine étape… (dictée vocale : micro du clavier)">${esc(v.notes)}</textarea></label>
+      ${equipForm(v.equip)}
       <label class="f">SIRET<input id="v-siret" inputmode="numeric" value="${esc(v.siret)}" placeholder="14 chiffres"></label>
       ${manual?`<button type="button" class="btn ghost sm" id="v-lookup">Compléter depuis le SIRET / SIREN</button>`:""}
       <button class="btn block" id="v-save">Enregistrer la visite</button>
@@ -993,6 +1061,7 @@ function openVisitForm(c, existing){
   $("#v-status").onclick=e=>{ const b=e.target.closest("button"); if(!b) return; v.status=b.dataset.s; $("#v-status").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b)); $("#v-cb-wrap").hidden=v.status!=="callback"; $("#v-status-err").hidden=true; };
   $("#v-sol").onclick=e=>{ const b=e.target.closest("button"); if(!b) return; const on=b.getAttribute("aria-pressed")!=="true"; b.setAttribute("aria-pressed",on); };
   $("#v-save").onclick=()=>save();
+  bindEquipForm();
   if(manual) $("#v-lookup").onclick=async()=>{
     const id=$("#v-siret").value.replace(/\D/g,""); if(!/^\d{9}(\d{5})?$/.test(id)){ toast("Saisissez 9 ou 14 chiffres"); return; }
     try{ const d=await apiGet("/search",{q:id,per_page:1,limite_matching_etablissements:5}); const ul=d.results?.[0]; if(!ul){ toast("Introuvable dans SIRENE"); return; }
@@ -1004,6 +1073,7 @@ function openVisitForm(c, existing){
   async function save(){
     v.contactName=$("#v-cname").value.trim(); v.contactRole=$("#v-crole").value.trim(); v.contactPhone=$("#v-cphone").value.trim();
     v.contactEmail=$("#v-cemail").value.trim(); v.notes=$("#v-notes").value.trim(); v.siret=$("#v-siret").value.replace(/\D/g,"");
+    v.equip = readEquipForm();
     v.solutions=[...$("#v-sol").querySelectorAll('[aria-pressed="true"]')].map(b=>b.dataset.v);
     v.callbackDate = v.status==="callback" ? $("#v-cb").value : "";
     if(manual){ v.name=$("#v-name").value.trim(); v.address=$("#v-addr").value.trim(); if(!v.name){ toast("Le nom de l'entreprise est obligatoire"); $("#v-name").focus(); return; } }
@@ -1027,6 +1097,7 @@ function openVisitDetail(id){
       <div><h2>Entreprise</h2><div class="card"><div style="font-weight:700">${esc(v.name)}</div><div class="co-sub">${esc(v.address)}</div><div style="height:8px"></div>
         <dl class="kv">${v.siret?`<dt>SIRET</dt><dd class="tabular">${esc(fmtSiret(v.siret))}</dd>`:""}${v.naf?`<dt>Activité</dt><dd>${esc(v.nafLabel)} <span class="co-sub">(${esc(v.naf)})</span></dd>`:""}${v.forme?`<dt>Forme</dt><dd>${esc(v.forme)}</dd>`:""}${v.effectif?`<dt>Effectif</dt><dd>${esc(v.effectif)}</dd>`:""}${v.dirigeant?`<dt>Dirigeant</dt><dd>${esc(v.dirigeant)}</dd>`:""}</dl></div></div>
       <div><h2>Contact</h2><div class="card">${v.contactName||v.contactPhone||v.contactEmail?`<dl class="kv">${v.contactName?`<dt>Nom</dt><dd>${esc(v.contactName)}</dd>`:""}${v.contactRole?`<dt>Fonction</dt><dd>${esc(v.contactRole)}</dd>`:""}${tel?`<dt>Téléphone</dt><dd class="tabular">${tel}</dd>`:""}${mail?`<dt>E-mail</dt><dd>${mail}</dd>`:""}</dl>`:`<span class="co-sub">Aucun contact saisi</span>`}</div></div>
+      ${equipDetail(v.equip)}
       ${v.solutions?.length?`<div><h2>Solutions évoquées</h2><div class="chips">${v.solutions.map(s=>`<span class="tag" style="font-size:13px">${esc(s)}</span>`).join("")}</div></div>`:""}
       <div class="row">${v.callbackDate?`<button class="btn ghost" id="d-ics" style="flex:1">Ajouter le rappel au calendrier</button>`:""}<button class="btn ghost" id="d-hist" style="flex:1">Historique de l'entreprise</button></div>
       <button class="btn danger block" id="d-del">Supprimer cette visite</button>
@@ -1098,9 +1169,9 @@ async function shareOrDownload(filename, content, mime){
 }
 function exportCSV(){
   if(!visits.length){ toast("Aucune visite à exporter"); return; }
-  const cols=["Date","Commercial","Entreprise","Adresse","SIRET","Code NAF","Activité","Forme juridique","Effectif","Dirigeant","Statut","Date de rappel","Solutions","Contact","Fonction","Téléphone","Email","Notes"];
+  const cols=["Date","Commercial","Entreprise","Adresse","SIRET","Code NAF","Activité","Forme juridique","Effectif","Dirigeant","Statut","Date de rappel","Solutions","Contact","Fonction","Téléphone","Email","Notes","Copieur - prestataire","Copieur - fin de contrat","Copieur - parc","Zeendoc - solution en place","Zeendoc - prestataire","Zeendoc - fin de contrat","Zeendoc - note","Compta - logiciel","Compta - fin de contrat"];
   const cell = s => { s=String(s??""); return /[;"\n\r]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
-  const rows = visits.map(v=>[new Date(v.date).toLocaleString("fr-FR"),settings.name,v.name,v.address,v.siret?"\u200B"+v.siret:"",v.naf,v.nafLabel,v.forme,v.effectif,v.dirigeant,STATUSES[v.status].label,v.callbackDate,(v.solutions||[]).join(", "),v.contactName,v.contactRole,v.contactPhone,v.contactEmail,v.notes].map(cell).join(";"));
+  const rows = visits.map(v=>[new Date(v.date).toLocaleString("fr-FR"),settings.name,v.name,v.address,v.siret?"\u200B"+v.siret:"",v.naf,v.nafLabel,v.forme,v.effectif,v.dirigeant,STATUSES[v.status].label,v.callbackDate,(v.solutions||[]).join(", "),v.contactName,v.contactRole,v.contactPhone,v.contactEmail,v.notes, ...EQUIP.flatMap(g=>g.fields.map(f=>{ const x=v.equip?.[g.k]?.[f.k]||""; return f.type==="month"&&x ? x.split("-").reverse().join("/") : x; }))].map(cell).join(";"));
   shareOrDownload(`visites_${todayYMD()}.csv`, "\uFEFF"+[cols.join(";"),...rows].join("\r\n"), "text/csv");
 }
 function exportICS(v){

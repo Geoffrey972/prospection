@@ -79,6 +79,22 @@ h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute
 .fab{width:48px;height:48px}
 select.pillsel{appearance:none;-webkit-appearance:none;border:0;background:none;font-size:13px;font-weight:600;width:96px;text-overflow:ellipsis}
 .hint{position:absolute;z-index:500;left:12px;bottom:16px;right:72px;font-size:12px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 10px;box-shadow:var(--shadow)}
+.addr{position:relative}
+.addr .pill{padding:0 6px 0 12px;gap:8px}
+.addr .pill svg{width:18px;height:18px;flex:none;color:var(--coral)}
+.addr input{flex:1;min-width:0;border:0;background:none;font-size:16px;height:38px;padding:0;outline:none}
+.addr input::-webkit-search-cancel-button{display:none}
+.addr input:focus{outline:none}
+.addr .pill:focus-within{border-color:var(--accent)}
+.addr.on .pill{border-color:var(--coral);box-shadow:var(--shadow),inset 0 0 0 1px var(--coral)}
+.addr-x{border:0;background:var(--surface2);color:var(--muted);width:28px;height:28px;border-radius:50%;font-size:17px;line-height:1;flex:none}
+.sugg{position:absolute;left:0;right:0;top:46px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;z-index:2}
+.sugg button{display:block;width:100%;text-align:left;border:0;background:none;padding:10px 14px;border-bottom:1px solid var(--line)}
+.sugg button:last-child{border-bottom:0}
+.sugg button b{display:block;font-weight:600;font-size:14.5px}
+.sugg button span{font-size:12px;color:var(--muted)}
+.sugg .none{padding:12px 14px;color:var(--muted);font-size:13.5px}
+.pin{width:30px;height:38px}
 .more{border:0;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:12px;border-radius:999px;padding:4px 10px;flex:none}
 
 /* Marqueurs */
@@ -194,6 +210,12 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
     <div id="map" aria-label="Carte des entreprises"></div>
     <div class="progress" id="progress" style="width:0"></div>
     <div class="map-top">
+      <div class="addr" id="addr">
+        <div class="pill"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7m0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5"/></svg>
+          <input id="addr-q" type="search" placeholder="Prospecter autour d'une adresse…" autocomplete="off" autocorrect="off" enterkeyhint="search" aria-label="Adresse">
+          <button class="addr-x" id="addr-clear" hidden aria-label="Revenir à ma position">×</button></div>
+        <div class="sugg" id="addr-sugg" hidden></div>
+      </div>
       <div class="seg" id="radius" role="group" aria-label="Rayon de recherche"></div>
       <div class="bar">
         <div class="pill" style="flex:1;min-width:0">
@@ -285,7 +307,7 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
    - Carte : Leaflet + OpenStreetMap
    - Stockage : IndexedDB sur l'appareil (aucun serveur)
    ===================================================================== */
-const VERSION = "1.0.0";
+const VERSION = "1.1.0";
 const API = "https://recherche-entreprises.api.gouv.fr";
 const GEO_REVERSE = "https://data.geopf.fr/geocodage/reverse";
 
@@ -452,15 +474,15 @@ function startGeoloc(){
     const ll=[pos.lat,pos.lng];
     if(!meMarker){ meMarker=L.marker(ll,{icon:L.divIcon({className:"",html:'<div class="me"></div>',iconSize:[18,18]}),interactive:false,zIndexOffset:1000}).addTo(map); meAccuracy=L.circle(ll,{radius:pos.acc,weight:0,fillOpacity:.08,interactive:false}).addTo(map); }
     else { meMarker.setLatLng(ll); meAccuracy.setLatLng(ll).setRadius(pos.acc); }
-    if(first){ first=false; map.setView(ll, zoomFor(settings.radius)); search(); }
+    if(first){ first=false; if(!anchor){ map.setView(ll, zoomFor(settings.radius)); search(); } }
   }, err=>{
     $("#count").textContent = err.code===1 ? "Autorisez la localisation (Réglages iPhone › Safari)" : "Position introuvable";
   }, {enableHighAccuracy:true, maximumAge:15000, timeout:20000});
 }
 
 async function search(more=false){
-  const center = more && lastQuery ? {lat:lastQuery.lat,lng:lastQuery.lng} : (pos ? {lat:pos.lat,lng:pos.lng} : null);
-  if(!center){ toast("Position GPS en attente…"); return; }
+  const center = more && lastQuery ? {lat:lastQuery.lat,lng:lastQuery.lng} : currentCenter();
+  if(!center){ toast("Position GPS en attente… ou saisissez une adresse"); return; }
   if(!navigator.onLine){ toast("Hors ligne : recherche impossible, saisie manuelle disponible"); return; }
   const btn=$("#btn-refresh"); btn.classList.add("spin");
   const prog=$("#progress");
@@ -515,6 +537,52 @@ function drawMarkers(){
   $("#btn-more").hidden = !(lastQuery && lastQuery.page<lastQuery.totalPages);
 }
 
+/* ---------- Prospection autour d'une adresse ----------
+   L'adresse saisie devient le centre de recherche (« ancre ») à la place du GPS.
+   Géocodage : API adresse IGN / BAN (gratuite, couvre les DOM). */
+const GEO_SEARCH = "https://data.geopf.fr/geocodage/search";
+let anchor = null, anchorMarker = null;
+function currentCenter(){ return anchor ? {lat:anchor.lat,lng:anchor.lng} : (pos ? {lat:pos.lat,lng:pos.lng} : null); }
+const pinIcon = L.divIcon({className:"",iconSize:[30,38],iconAnchor:[15,37],html:'<svg class="pin" viewBox="0 0 30 38"><path d="M15 1C7.3 1 1 7.2 1 14.8 1 25 15 37 15 37s14-12 14-22.2C29 7.2 22.7 1 15 1z" fill="#e86f3e" stroke="#fff" stroke-width="2"/><circle cx="15" cy="14.5" r="5" fill="#fff"/></svg>'});
+function setAnchor(lat, lng, label){
+  anchor = {lat, lng, label};
+  if(anchorMarker) anchorMarker.remove();
+  anchorMarker = L.marker([lat,lng],{icon:pinIcon, zIndexOffset:900, interactive:false}).addTo(map);
+  $("#addr-q").value = label; $("#addr-q").blur(); $("#addr-sugg").hidden = true;
+  $("#addr-clear").hidden = false; $("#addr").classList.add("on");
+  map.setView([lat,lng], zoomFor(settings.radius));
+  search();
+}
+function clearAnchor(){
+  anchor = null; if(anchorMarker){ anchorMarker.remove(); anchorMarker=null; }
+  $("#addr-q").value = ""; $("#addr-clear").hidden = true; $("#addr").classList.remove("on"); $("#addr-sugg").hidden = true;
+}
+(()=>{
+  const inp=$("#addr-q"), box=$("#addr-sugg"); let tm, items=[], seq=0;
+  async function suggest(){
+    const q=inp.value.trim(); if(q.length<3){ box.hidden=true; return; }
+    const my=++seq; const ref=pos||map.getCenter();
+    try{
+      const u=`${GEO_SEARCH}?q=${encodeURIComponent(q)}&limit=15&autocomplete=1&lat=${ref.lat.toFixed(5)}&lon=${ref.lng.toFixed(5)}`;
+      const j=await (await fetch(u)).json(); if(my!==seq) return;
+      let f=(j.features||[]).filter(x=>x.geometry?.coordinates);
+      // Priorité au territoire choisi dans les réglages
+      if(settings.dept){ const loc=f.filter(x=>(x.properties.postcode||x.properties.citycode||"").startsWith(settings.dept)); if(loc.length) f=loc; }
+      items=f.slice(0,6);
+      box.innerHTML = items.length ? items.map((x,i)=>`<button type="button" data-i="${i}"><b>${esc(x.properties.label)}</b><span>${esc(x.properties.context||"")}</span></button>`).join("") : `<div class="none">Aucune adresse trouvée</div>`;
+      box.hidden=false;
+    }catch(e){ if(my===seq){ box.innerHTML=`<div class="none">${navigator.onLine?"Recherche d'adresse indisponible":"Hors ligne"}</div>`; box.hidden=false; } }
+  }
+  function pick(i){ const x=items[i]; if(!x) return; const [lng,lat]=x.geometry.coordinates; setAnchor(lat,lng,x.properties.label); }
+  inp.addEventListener("input",()=>{ clearTimeout(tm); tm=setTimeout(suggest,300); });
+  inp.addEventListener("focus",()=>{ if(anchor) inp.select(); });
+  inp.addEventListener("keydown",async e=>{ if(e.key==="Enter"){ e.preventDefault(); clearTimeout(tm); if(!items.length||box.hidden) await suggest(); pick(0); } });
+  box.addEventListener("pointerdown",e=>e.preventDefault()); // garde le focus pendant le choix
+  box.addEventListener("click",e=>{ const b=e.target.closest("[data-i]"); if(b) pick(+b.dataset.i); });
+  inp.addEventListener("blur",()=>setTimeout(()=>{ box.hidden=true; if(anchor && !inp.value.trim()) inp.value=anchor.label; },150));
+  $("#addr-clear").onclick=()=>{ clearAnchor(); if(pos){ map.setView([pos.lat,pos.lng],zoomFor(settings.radius)); search(); } };
+})();
+
 /* Appui long (~500 ms) : identifier ou saisir un lieu non référencé */
 function setupLongPress(){
   const el = map.getContainer(); let t=null, start=null;
@@ -545,9 +613,12 @@ async function onLongPress(ll){
     <div class="co-name">${esc(address||"Adresse inconnue")}</div>
     ${near.length?`<h2>Entreprises à cet endroit</h2><div class="list results">${near.map((n,i)=>tileCompany(n.c,n.d,i)).join("")}</div>`:`<p class="co-sub">Aucune entreprise référencée à moins de 60 m.</p>`}
     <div style="height:12px"></div>
-    <button class="btn block" id="lp-manual">Saisir une entreprise non référencée</button>`;
+    <button class="btn block" id="lp-manual">Saisir une entreprise non référencée</button>
+    <div style="height:8px"></div>
+    <button class="btn ghost block" id="lp-around">Prospecter autour de ce point</button>`;
   $("#sheet-body").querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>{ tmp.remove(); openCompany(near[+b.dataset.i].c); });
   $("#lp-manual").onclick=()=>{ tmp.remove(); closeSheet(true); openVisitForm(manual); };
+  $("#lp-around").onclick=()=>{ tmp.remove(); closeSheet(true); setAnchor(ll.lat, ll.lng, address||"Point sélectionné"); };
 }
 
 function tileCompany(c, d, i){
@@ -586,10 +657,10 @@ function companyBlock(c){
 }
 function openCompany(c){
   const k = keyOf(c); const hist = visitsFor(k); const lv = hist[0];
-  const d = pos ? distance(pos,c) : null;
+  const d = (anchor||pos) ? distance(anchor||pos,c) : null;
   const q = encodeURIComponent(c.name+" "+c.address);
   openSheet(`
-    <div class="chips" style="margin-top:6px">${c.categorie?`<span class="tag">${esc(CATEGORIES[c.categorie]||c.categorie)}</span>`:""}${sectionOf(c.naf)?`<span class="tag">${esc(SECTIONS[sectionOf(c.naf)])}</span>`:""}${d!=null?`<span class="tag tabular">à ${fmtDist(d)}</span>`:""}</div>
+    <div class="chips" style="margin-top:6px">${c.categorie?`<span class="tag">${esc(CATEGORIES[c.categorie]||c.categorie)}</span>`:""}${sectionOf(c.naf)?`<span class="tag">${esc(SECTIONS[sectionOf(c.naf)])}</span>`:""}${d!=null?`<span class="tag tabular">à ${fmtDist(d)}${anchor?" de l'adresse":""}</span>`:""}</div>
     <div class="co-name">${esc(c.name)}</div>
     ${c.legalName&&c.legalName!==c.name?`<div class="co-sub">${esc(c.legalName)}</div>`:""}
     <div class="co-sub">${esc(c.address)}</div>
@@ -610,7 +681,7 @@ function openCompany(c){
 
 /* Liste des entreprises proches, triées par distance */
 function openNearbyList(){
-  const ref = pos || searchCenter;
+  const ref = anchor || pos || searchCenter;
   const items = [...companies.values()].filter(passesFilters).map(c=>({c,d:ref?distance(ref,c):null})).sort((a,b)=>(a.d??0)-(b.d??0));
   if(!items.length){ toast("Aucune entreprise chargée"); return; }
   openSheet(`<div class="co-name">${items.length} entreprise${items.length>1?"s":""} à proximité</div><div class="co-sub">Triées par distance</div><div style="height:10px"></div><div class="list results">${items.map((x,i)=>tileCompany(x.c,x.d,i)).join("")}</div>`);
@@ -824,7 +895,7 @@ document.querySelectorAll("#tabbar button").forEach(b=>b.onclick=()=>setTab(b.da
 
 function renderRadius(){
   $("#radius").innerHTML = RADII.map(r=>`<button aria-pressed="${settings.radius===r}" data-r="${r}">${fmtDist(r)}</button>`).join("");
-  $("#radius").querySelectorAll("button").forEach(b=>b.onclick=()=>{ settings.radius=+b.dataset.r; saveSettings(); renderRadius(); if(pos) map.setView([pos.lat,pos.lng],zoomFor(settings.radius)); search(); });
+  $("#radius").querySelectorAll("button").forEach(b=>b.onclick=()=>{ settings.radius=+b.dataset.r; saveSettings(); renderRadius(); const c=currentCenter(); if(c) map.setView([c.lat,c.lng],zoomFor(settings.radius)); search(); });
 }
 function renderSector(){
   const opts = Object.entries(SECTIONS).filter(([k])=>!["T","U"].includes(k));
@@ -834,7 +905,7 @@ function renderSector(){
 }
 $("#btn-refresh").onclick=()=>search();
 $("#btn-more").onclick=()=>search(true);
-$("#btn-locate").onclick=()=>{ if(pos) map.setView([pos.lat,pos.lng], zoomFor(settings.radius)); else toast("Position GPS en attente…"); };
+$("#btn-locate").onclick=()=>{ const had=!!anchor; clearAnchor(); if(pos){ map.setView([pos.lat,pos.lng], zoomFor(settings.radius)); if(had) search(); } else toast("Position GPS en attente…"); };
 $("#btn-list").onclick=openNearbyList;
 $("#btn-search").onclick=()=>openSearch();
 $("#visit-q").oninput=renderVisits;

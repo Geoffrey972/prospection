@@ -1,0 +1,864 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Prospection Terrain</title>
+<meta name="theme-color" content="#0e4c52">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Prospection">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+/* ============ Palette & thèmes ============ */
+:root{
+  --bg:#f3f6f6; --surface:#ffffff; --surface2:#e9eff0; --ink:#12242a; --muted:#5b6f75; --line:#d5dfe1;
+  --accent:#0e4c52; --accent-ink:#ffffff; --accent-soft:#d6ebec; --coral:#e86f3e;
+  --st-interested:#2563c9; --st-callback:#d98a0b; --st-refused:#c93a32; --st-signed:#1f8f4e;
+  --notes-bg:#fff6d6; --notes-line:#ecd98f;
+  --shadow:0 6px 24px rgba(10,40,45,.16);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c1618; --surface:#142227; --surface2:#1b2d33; --ink:#e7f0f1; --muted:#93a8ad; --line:#2a3f45;
+    --accent:#5fb7bd; --accent-ink:#06282b; --accent-soft:#17393d; --coral:#f08a5d;
+    --st-interested:#5b93ec; --st-callback:#f0a93a; --st-refused:#ec6a61; --st-signed:#46bf78;
+    --notes-bg:#2e2a17; --notes-line:#5a5024; --shadow:0 6px 24px rgba(0,0,0,.5);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c1618; --surface:#142227; --surface2:#1b2d33; --ink:#e7f0f1; --muted:#93a8ad; --line:#2a3f45;
+  --accent:#5fb7bd; --accent-ink:#06282b; --accent-soft:#17393d; --coral:#f08a5d;
+  --st-interested:#5b93ec; --st-callback:#f0a93a; --st-refused:#ec6a61; --st-signed:#46bf78;
+  --notes-bg:#2e2a17; --notes-line:#5a5024; --shadow:0 6px 24px rgba(0,0,0,.5);
+  color-scheme:dark;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;overflow:hidden;overscroll-behavior:none}
+button,input,select,textarea{font:inherit;color:inherit}
+[hidden]{display:none!important}
+.tabular{font-variant-numeric:tabular-nums}
+
+/* ============ Structure ============ */
+#screens{position:fixed;inset:0 0 calc(58px + env(safe-area-inset-bottom,0px)) 0}
+.screen{position:absolute;inset:0;overflow:auto;-webkit-overflow-scrolling:touch}
+.screen.pad{padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 24px}
+#tabbar{position:fixed;left:0;right:0;bottom:0;height:calc(58px + env(safe-area-inset-bottom,0px));padding-bottom:env(safe-area-inset-bottom,0px);display:flex;background:var(--surface);border-top:1px solid var(--line);z-index:900}
+#tabbar button{flex:1;border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;color:var(--muted);position:relative}
+#tabbar button svg{width:24px;height:24px}
+#tabbar button[aria-selected="true"]{color:var(--accent)}
+.badge{position:absolute;top:5px;left:calc(50% + 6px);min-width:17px;height:17px;border-radius:9px;background:var(--coral);color:#fff;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px}
+
+h1{font-size:26px;letter-spacing:-.02em;margin:4px 0 12px;text-wrap:balance}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:20px 0 8px;font-weight:600}
+
+/* ============ Carte ============ */
+#map{position:absolute;inset:0;background:var(--surface2)}
+.leaflet-container{font:inherit}
+.map-top{position:absolute;z-index:500;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 10px);display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.map-top > *{pointer-events:auto}
+.bar{display:flex;gap:8px;align-items:center}
+.pill{background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:999px;height:40px;display:flex;align-items:center;padding:0 12px;gap:6px}
+.seg{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;box-shadow:var(--shadow);padding:3px;overflow-x:auto;scrollbar-width:none}
+.seg::-webkit-scrollbar{display:none}
+.seg button{border:0;background:none;border-radius:999px;padding:6px 10px;font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.count{font-size:13px;color:var(--muted);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.count b{color:var(--ink)}
+.iconbtn{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;flex:none}
+.iconbtn svg{width:20px;height:20px}
+.iconbtn.spin svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.fabs{position:absolute;z-index:500;right:12px;bottom:16px;display:flex;flex-direction:column;gap:10px}
+.fab{width:48px;height:48px}
+select.pillsel{appearance:none;-webkit-appearance:none;border:0;background:none;font-size:13px;font-weight:600;width:96px;text-overflow:ellipsis}
+.hint{position:absolute;z-index:500;left:12px;bottom:16px;right:72px;font-size:12px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 10px;box-shadow:var(--shadow)}
+.more{border:0;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:12px;border-radius:999px;padding:4px 10px;flex:none}
+
+/* Marqueurs */
+.mk{width:16px;height:16px;border-radius:50%;background:var(--st-refused);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.mk.new{background:#b3342c}
+.flag{width:26px;height:30px}
+.me{width:18px;height:18px;border-radius:50%;background:#1a73e8;border:3px solid #fff;box-shadow:0 0 0 6px rgba(26,115,232,.2)}
+
+/* ============ Feuilles (bottom sheet) & modales ============ */
+.scrim{position:fixed;inset:0;background:rgba(5,20,24,.35);z-index:1000;opacity:0;transition:opacity .2s}
+.scrim.on{opacity:1}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:1001;background:var(--surface);border-radius:18px 18px 0 0;box-shadow:var(--shadow);max-height:82%;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .25s ease}
+.sheet.on{transform:none}
+.sheet .grab{width:40px;height:5px;border-radius:3px;background:var(--line);margin:8px auto 0;flex:none}
+.sheet .body{overflow:auto;padding:8px 16px calc(20px + env(safe-area-inset-bottom,0px))}
+.modal{position:fixed;inset:0;z-index:1100;background:var(--bg);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s ease}
+.modal.on{transform:none}
+.mhead{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 8px) 8px 8px;background:var(--surface);border-bottom:1px solid var(--line)}
+.mhead h3{flex:1;margin:0;font-size:17px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mhead button{border:0;background:none;color:var(--accent);font-weight:600;padding:8px;min-width:72px}
+.mhead button.r{text-align:right}
+.mbody{flex:1;overflow:auto;padding:16px 16px calc(28px + env(safe-area-inset-bottom,0px))}
+@media (prefers-reduced-motion: reduce){.sheet,.modal,.scrim{transition:none}}
+
+/* ============ Fiche entreprise ============ */
+.co-name{font-size:21px;font-weight:700;letter-spacing:-.01em;margin:6px 0 2px;text-wrap:balance}
+.co-sub{color:var(--muted);font-size:13.5px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-size:12px;font-weight:600;border-radius:6px;padding:3px 7px;background:var(--surface2);color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.sheet .card{background:var(--surface2);border-color:transparent}
+.kv{display:grid;grid-template-columns:104px 1fr;gap:6px 12px;font-size:14px}
+.kv dt{color:var(--muted);font-size:12.5px;padding-top:1px}
+.kv dd{margin:0;word-break:break-word}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:0;border-radius:12px;height:46px;padding:0 16px;font-weight:650;background:var(--accent);color:var(--accent-ink);display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
+.btn.block{width:100%}
+.btn.ghost{background:var(--surface2);color:var(--ink)}
+.btn.danger{background:none;color:var(--st-refused);border:1px solid var(--line)}
+.btn.sm{height:36px;font-size:13.5px;border-radius:10px;padding:0 12px}
+.links a{font-size:13.5px}
+a{color:var(--accent)}
+.warn{background:color-mix(in srgb,var(--st-callback) 14%,var(--surface));border:1px solid color-mix(in srgb,var(--st-callback) 40%,transparent);border-radius:12px;padding:12px}
+
+/* Statuts */
+.st{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;border-radius:999px;padding:3px 10px;color:#fff;border:0}
+.st.interested{background:var(--st-interested)} .st.callback{background:var(--st-callback)} .st.refused{background:var(--st-refused)} .st.signed{background:var(--st-signed)}
+.stchips{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stchips button{height:48px;border-radius:12px;border:2px solid var(--line);background:var(--surface);font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px}
+.stchips button i{width:10px;height:10px;border-radius:50%}
+.stchips button[aria-pressed="true"]{color:#fff;border-color:transparent}
+.stchips [data-s="interested"] i,.stchips [data-s="interested"][aria-pressed="true"]{background:var(--st-interested)}
+.stchips [data-s="callback"] i,.stchips [data-s="callback"][aria-pressed="true"]{background:var(--st-callback)}
+.stchips [data-s="refused"] i,.stchips [data-s="refused"][aria-pressed="true"]{background:var(--st-refused)}
+.stchips [data-s="signed"] i,.stchips [data-s="signed"][aria-pressed="true"]{background:var(--st-signed)}
+.stchips button[aria-pressed="true"] i{background:#fff!important}
+
+/* Formulaires */
+label.f{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted);font-weight:600}
+label.f input,label.f textarea,label.f select,.inp{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:11px 12px;font-size:16px;color:var(--ink);font-weight:400;width:100%}
+label.f textarea{min-height:130px;resize:vertical}
+input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.toggle:last-child{border-bottom:0}
+.toggle small{display:block;color:var(--muted);font-size:12.5px}
+.toggle input[type=checkbox]{width:22px;height:22px;accent-color:var(--accent);flex:none}
+.sol{display:flex;gap:8px;flex-wrap:wrap}
+.sol button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 14px;font-weight:600;font-size:14px}
+.sol button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.err{color:var(--st-refused);font-size:12.5px}
+
+/* Listes */
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.summary button{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 6px;text-align:left;display:flex;flex-direction:column;gap:2px}
+.summary button b{font-size:22px;line-height:1.1}
+.summary button span{font-size:11px;color:var(--muted);font-weight:600}
+.summary button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.summary .interested b{color:var(--st-interested)} .summary .callback b{color:var(--st-callback)} .summary .refused b{color:var(--st-refused)} .summary .signed b{color:var(--st-signed)}
+.list{display:flex;flex-direction:column;gap:8px}
+.tile{display:grid;grid-template-columns:5px 1fr auto;gap:0 12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 12px 12px 0;text-align:left;width:100%;overflow:hidden}
+.tile .stripe{align-self:stretch;border-radius:0 3px 3px 0;margin:-12px 0}
+.tile .t{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .s{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .d{font-size:12px;color:var(--muted);text-align:right}
+.tile.overdue .d{color:var(--st-refused);font-weight:700}
+.empty{text-align:center;color:var(--muted);padding:40px 16px}
+.search{position:relative;margin-bottom:12px}
+.search input{padding-left:36px}
+.search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:var(--muted)}
+
+.notes{background:var(--notes-bg);border:1px solid var(--notes-line);border-radius:12px;padding:14px;white-space:pre-wrap;user-select:text;-webkit-user-select:text;font-size:15.5px;line-height:1.5}
+.hero{border-radius:14px;padding:14px;color:#fff}
+.hero.interested{background:var(--st-interested)} .hero.callback{background:var(--st-callback)} .hero.refused{background:var(--st-refused)} .hero.signed{background:var(--st-signed)}
+.hero b{font-size:19px;display:block}
+.hist{border-left:3px solid var(--line);padding-left:12px;display:flex;flex-direction:column;gap:12px}
+
+.toast{position:fixed;left:16px;right:16px;bottom:calc(72px + env(safe-area-inset-bottom,0px));z-index:1300;background:var(--ink);color:var(--bg);border-radius:12px;padding:12px 14px;font-weight:600;font-size:14px;box-shadow:var(--shadow);transform:translateY(20px);opacity:0;transition:.2s;pointer-events:none}
+.toast.on{transform:none;opacity:1}
+.confirm{position:fixed;inset:0;z-index:1400;display:flex;align-items:flex-end;justify-content:center;background:rgba(5,20,24,.4);padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px))}
+.confirm .box{background:var(--surface);border-radius:16px;padding:16px;width:100%;max-width:480px;display:flex;flex-direction:column;gap:12px}
+.progress{height:3px;background:var(--accent);position:absolute;top:0;left:0;z-index:600;transition:width .3s}
+.off{background:var(--st-callback);color:#fff;font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px}
+.results .tile{grid-template-columns:5px 1fr auto}
+.foot{color:var(--muted);font-size:12px;margin-top:24px;line-height:1.5}
+</style>
+</head>
+<body>
+
+<div id="screens">
+  <!-- ======= Écran Carte ======= -->
+  <section class="screen" id="scr-map">
+    <div id="map" aria-label="Carte des entreprises"></div>
+    <div class="progress" id="progress" style="width:0"></div>
+    <div class="map-top">
+      <div class="seg" id="radius" role="group" aria-label="Rayon de recherche"></div>
+      <div class="bar">
+        <div class="pill" style="flex:1;min-width:0">
+          <span class="count tabular" id="count">Localisation…</span>
+          <button class="more" id="btn-more" hidden>+25</button>
+        </div>
+        <div class="pill" style="padding:0 10px">
+          <select class="pillsel" id="sector" aria-label="Secteur d'activité"></select>
+        </div>
+        <button class="iconbtn" id="btn-refresh" aria-label="Relancer la recherche"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></svg></button>
+      </div>
+    </div>
+    <div class="fabs">
+      <button class="iconbtn fab" id="btn-list" aria-label="Liste des entreprises proches"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
+      <button class="iconbtn fab" id="btn-search" aria-label="Rechercher une entreprise"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+      <button class="iconbtn fab" id="btn-locate" aria-label="Recentrer sur ma position"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 3 3 7.5z"/></svg></button>
+    </div>
+    <div class="hint" id="hint">Appui long sur la carte : enregistrer un lieu non référencé.</div>
+  </section>
+
+  <!-- ======= Écran Visites ======= -->
+  <section class="screen pad" id="scr-visits" hidden>
+    <h1>Mes visites</h1>
+    <div class="summary tabular" id="summary"></div>
+    <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input class="inp" id="visit-q" type="search" placeholder="Filtrer par entreprise, contact, note…"></div>
+    <div class="list" id="visit-list"></div>
+  </section>
+
+  <!-- ======= Écran Rappels ======= -->
+  <section class="screen pad" id="scr-calls" hidden>
+    <h1>À rappeler</h1>
+    <div class="list" id="call-list"></div>
+  </section>
+
+  <!-- ======= Écran Réglages ======= -->
+  <section class="screen pad" id="scr-settings" hidden>
+    <h1>Réglages</h1>
+    <h2>Recherche</h2>
+    <div class="card">
+      <label class="toggle"><span>Employeurs uniquement<small>Masque les entreprises sans salarié déclaré</small></span><input type="checkbox" id="set-employers"></label>
+      <label class="toggle"><span>Exclure le secteur public<small>Communes, administrations, établissements publics</small></span><input type="checkbox" id="set-public"></label>
+      <label class="toggle"><span>Exclure les grands groupes<small>Catégorie GE (plus de 5 000 salariés)</small></span><input type="checkbox" id="set-ge"></label>
+      <label class="toggle"><span>Territoire pour la recherche par nom</span>
+        <select id="set-dept" class="inp" style="width:auto">
+          <option value="972">Martinique</option><option value="971">Guadeloupe</option><option value="973">Guyane</option><option value="974">La Réunion</option><option value="">Toute la France</option>
+        </select></label>
+      <label class="toggle"><span>Délai de rappel par défaut</span>
+        <select id="set-delay" class="inp" style="width:auto"><option value="1">J+1</option><option value="3">J+3</option><option value="7">J+7</option><option value="14">J+14</option></select></label>
+    </div>
+    <h2>Commercial</h2>
+    <div class="card stack">
+      <label class="f">Votre nom (repris dans les exports)<input id="set-name" autocomplete="name"></label>
+    </div>
+    <h2>Données</h2>
+    <div class="card stack">
+      <div class="co-sub tabular" id="data-stats"></div>
+      <button class="btn block" id="btn-csv">Exporter les visites (CSV Excel)</button>
+      <button class="btn ghost block" id="btn-backup">Sauvegarder (fichier JSON)</button>
+      <label class="btn ghost block" for="restore-file">Restaurer une sauvegarde</label>
+      <input type="file" id="restore-file" accept=".json,application/json" hidden>
+    </div>
+    <p class="foot">Les visites sont stockées uniquement sur cet iPhone. Pensez à exporter une sauvegarde régulièrement (Fichiers, OneDrive, e-mail).<br>
+    Données entreprises : API Recherche d'entreprises (INSEE / RNE, data.gouv.fr). Fond de carte © contributeurs OpenStreetMap.<br><span id="ver"></span></p>
+  </section>
+</div>
+
+<nav id="tabbar" role="tablist">
+  <button role="tab" data-tab="map" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>Carte</button>
+  <button role="tab" data-tab="visits"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Visites</button>
+  <button role="tab" data-tab="calls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>Rappels<span class="badge" id="call-badge" hidden></span></button>
+  <button role="tab" data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Réglages</button>
+</nav>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true"><div class="grab"></div><div class="body" id="sheet-body"></div></div>
+<div class="modal" id="modal" role="dialog" aria-modal="true">
+  <div class="mhead"><button id="m-left">Fermer</button><h3 id="m-title"></h3><button class="r" id="m-right"></button></div>
+  <div class="mbody" id="m-body"></div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+"use strict";
+/* =====================================================================
+   Prospection Terrain — TRIMARG
+   Web-app (PWA) de prospection B2B pour iPhone.
+   - Entreprises : API publique « Recherche d'entreprises » (sans clé)
+   - Carte : Leaflet + OpenStreetMap
+   - Stockage : IndexedDB sur l'appareil (aucun serveur)
+   ===================================================================== */
+const VERSION = "1.0.0";
+const API = "https://recherche-entreprises.api.gouv.fr";
+const GEO_REVERSE = "https://data.geopf.fr/geocodage/reverse";
+
+/* ---------- Référentiels ---------- */
+const STATUSES = {
+  interested:{label:"Intéressé"}, callback:{label:"À rappeler"},
+  refused:{label:"Refus"}, signed:{label:"Signé"}
+};
+const STATUS_ORDER = ["interested","callback","refused","signed"];
+const SOLUTIONS = ["Zeendoc","Pennylane","Autre"];
+const RADII = [100,300,500,1000,2000,5000];
+
+const SECTIONS = {A:"Agriculture, pêche",B:"Industries extractives",C:"Industrie",D:"Énergie",E:"Eau, déchets",F:"Construction / BTP",G:"Commerce, auto",H:"Transport, logistique",I:"Hôtellerie, restauration",J:"Info & communication",K:"Finance, assurance",L:"Immobilier",M:"Conseil, juridique, technique",N:"Services aux entreprises",O:"Administration publique",P:"Enseignement",Q:"Santé, social",R:"Arts, loisirs",S:"Autres services",T:"Ménages",U:"Extraterritorial"};
+const NAF_DIV = {"01":"Culture et production animale","02":"Sylviculture","03":"Pêche et aquaculture","05":"Extraction de houille","06":"Extraction d'hydrocarbures","07":"Extraction de minerais","08":"Autres industries extractives","09":"Soutien aux industries extractives","10":"Industries alimentaires","11":"Fabrication de boissons","12":"Produits à base de tabac","13":"Fabrication de textiles","14":"Industrie de l'habillement","15":"Cuir et chaussure","16":"Travail du bois","17":"Papier et carton","18":"Imprimerie","19":"Cokéfaction et raffinage","20":"Industrie chimique","21":"Industrie pharmaceutique","22":"Caoutchouc et plastique","23":"Produits minéraux non métalliques","24":"Métallurgie","25":"Produits métalliques","26":"Informatique, électronique, optique","27":"Équipements électriques","28":"Machines et équipements","29":"Industrie automobile","30":"Autres matériels de transport","31":"Fabrication de meubles","32":"Autres industries manufacturières","33":"Réparation et installation de machines","35":"Électricité, gaz","36":"Distribution d'eau","37":"Eaux usées","38":"Gestion des déchets","39":"Dépollution","41":"Construction de bâtiments","42":"Génie civil","43":"Travaux de construction spécialisés","45":"Commerce et réparation automobile","46":"Commerce de gros","47":"Commerce de détail","49":"Transports terrestres","50":"Transports par eau","51":"Transports aériens","52":"Entreposage, services auxiliaires des transports","53":"Poste et courrier","55":"Hébergement","56":"Restauration","58":"Édition","59":"Audiovisuel, musique","60":"Programmation et diffusion","61":"Télécommunications","62":"Programmation, conseil informatique","63":"Services d'information","64":"Services financiers","65":"Assurance","66":"Auxiliaires financiers et d'assurance","68":"Activités immobilières","69":"Activités juridiques et comptables","70":"Sièges sociaux, conseil de gestion","71":"Architecture, ingénierie, contrôle","72":"Recherche-développement","73":"Publicité, études de marché","74":"Autres activités spécialisées","75":"Activités vétérinaires","77":"Location et location-bail","78":"Activités liées à l'emploi","79":"Agences de voyage","80":"Enquêtes et sécurité","81":"Services aux bâtiments, paysage","82":"Soutien administratif aux entreprises","84":"Administration publique","85":"Enseignement","86":"Santé humaine","87":"Hébergement médico-social","88":"Action sociale sans hébergement","90":"Arts du spectacle","91":"Bibliothèques, musées","92":"Jeux de hasard","93":"Sport et loisirs","94":"Organisations associatives","95":"Réparation d'ordinateurs et biens personnels","96":"Autres services personnels","97":"Ménages employeurs","98":"Ménages producteurs","99":"Organisations extraterritoriales"};
+const EFFECTIFS = {"NN":"Non renseigné","00":"0 salarié","01":"1 à 2","02":"3 à 5","03":"6 à 9","11":"10 à 19","12":"20 à 49","21":"50 à 99","22":"100 à 199","31":"200 à 249","32":"250 à 499","41":"500 à 999","42":"1 000 à 1 999","51":"2 000 à 4 999","52":"5 000 à 9 999","53":"10 000 et +"};
+const FORMES = {"1000":"Entrepreneur individuel","5499":"SARL","5498":"EURL","5710":"SAS","5720":"SASU","5599":"SA à conseil d'administration","5699":"SA à directoire","5202":"SNC","6540":"SCI","6599":"Société civile","5485":"SELARL","5785":"SELAS","6589":"Société civile de moyens","5460":"SARL coopérative","9220":"Association déclarée","5410":"SARL nationale","5505":"SA à participation ouvrière","6316":"CUMA","6317":"Société coopérative agricole","6533":"GAEC","6598":"EARL","7210":"Commune","7346":"Communauté de communes","5308":"Société en commandite"};
+const CATEGORIES = {PME:"PME",ETI:"ETI",GE:"Grande entreprise"};
+
+function sectionOf(naf){
+  const d = parseInt((naf||"").slice(0,2),10);
+  if(isNaN(d)) return null;
+  if(d<=3) return "A"; if(d<=9) return "B"; if(d<=33) return "C"; if(d===35) return "D"; if(d<=39) return "E";
+  if(d<=43) return "F"; if(d<=47) return "G"; if(d<=53) return "H"; if(d<=56) return "I"; if(d<=63) return "J";
+  if(d<=66) return "K"; if(d===68) return "L"; if(d<=75) return "M"; if(d<=82) return "N"; if(d===84) return "O";
+  if(d===85) return "P"; if(d<=88) return "Q"; if(d<=93) return "R"; if(d<=96) return "S"; if(d<=98) return "T"; return "U";
+}
+const nafLabel = naf => naf ? (NAF_DIV[naf.slice(0,2)] || "") : "";
+function formeLabel(c){
+  if(!c) return "";
+  if(FORMES[c]) return FORMES[c];
+  const p1=c[0], p2=c.slice(0,2);
+  if(p1==="1") return "Entreprise individuelle";
+  if(p2==="54") return "SARL"; if(p2==="55"||p2==="56") return "Société anonyme"; if(p2==="57") return "SAS";
+  if(p2==="65") return "Société civile"; if(p1==="7") return "Personne morale de droit public"; if(p1==="9") return "Association / groupement";
+  if(p1==="6") return "Société civile / coopérative"; return "Code "+c;
+}
+
+/* ---------- Utilitaires ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtDate = (iso, long) => { if(!iso) return ""; const d=new Date(iso); return long ? d.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"})+" à "+d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}) : d.toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"2-digit"}); };
+const fmtDay = ymd => ymd ? new Date(ymd+"T12:00").toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"}) : "";
+const todayYMD = (plus=0) => { const d=new Date(); d.setDate(d.getDate()+plus); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
+const fmtSiret = s => s ? String(s).replace(/^(\d{3})(\d{3})(\d{3})(\d{0,5})$/,"$1 $2 $3 $4").trim() : "";
+const fmtDist = m => m<1000 ? Math.round(m)+" m" : (m/1000).toFixed(1).replace(".",",")+" km";
+const fmtEur = n => new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n);
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+function distance(a,b){ const R=6371e3,t=Math.PI/180; const dLa=(b.lat-a.lat)*t,dLo=(b.lng-a.lng)*t; const x=Math.sin(dLa/2)**2+Math.cos(a.lat*t)*Math.cos(b.lat*t)*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(x)); }
+let toastT; function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("on"),2600); }
+function confirmBox(text, okLabel="Supprimer"){
+  return new Promise(res=>{
+    const w=document.createElement("div"); w.className="confirm";
+    w.innerHTML=`<div class="box"><div style="font-weight:650">${esc(text)}</div><button class="btn block" style="background:var(--st-refused);color:#fff" data-ok>${esc(okLabel)}</button><button class="btn ghost block" data-no>Annuler</button></div>`;
+    w.addEventListener("click",e=>{ if(e.target.closest("[data-ok]")){w.remove();res(true);} else if(e.target.closest("[data-no]")||e.target===w){w.remove();res(false);} });
+    document.body.appendChild(w);
+  });
+}
+
+/* ---------- Réglages (localStorage, avec garde-fous) ---------- */
+const DEFAULTS = {radius:300, employers:false, excludePublic:true, excludeGE:false, dept:"972", delay:3, name:"", sector:""};
+let settings = {...DEFAULTS};
+try{ settings = {...DEFAULTS, ...JSON.parse(localStorage.getItem("settings")||"{}")}; }catch(e){}
+function saveSettings(){ try{ localStorage.setItem("settings",JSON.stringify(settings)); }catch(e){} }
+
+/* ---------- Base locale IndexedDB ---------- */
+const DB = (()=>{
+  let dbp;
+  function open(){
+    if(dbp) return dbp;
+    dbp = new Promise((res,rej)=>{
+      const r = indexedDB.open("prospection",1);
+      r.onupgradeneeded = () => { const db=r.result; if(!db.objectStoreNames.contains("visits")) db.createObjectStore("visits",{keyPath:"id"}); };
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+    return dbp;
+  }
+  async function tx(mode, fn){ const db=await open(); return new Promise((res,rej)=>{ const t=db.transaction("visits",mode); const s=t.objectStore("visits"); const out=fn(s); t.oncomplete=()=>res(out&&out.result!==undefined?out.result:out); t.onerror=()=>rej(t.error); }); }
+  return {
+    all: async()=>{ const db=await open(); return new Promise((res,rej)=>{ const r=db.transaction("visits").objectStore("visits").getAll(); r.onsuccess=()=>res(r.result||[]); r.onerror=()=>rej(r.error); }); },
+    put: v => tx("readwrite", s=>s.put(v)),
+    del: id => tx("readwrite", s=>s.delete(id)),
+  };
+})();
+let visits = [];
+async function loadVisits(){ try{ visits = await DB.all(); }catch(e){ visits=[]; toast("Stockage local indisponible"); } visits.sort((a,b)=>b.date.localeCompare(a.date)); }
+const keyOf = c => c.siret || c.key;
+function visitsFor(key){ return visits.filter(v=>v.key===key).sort((a,b)=>b.date.localeCompare(a.date)); }
+function lastVisitMap(){ const m=new Map(); for(const v of visits){ const cur=m.get(v.key); if(!cur||v.date>cur.date) m.set(v.key,v); } return m; }
+
+/* ---------- API Recherche d'entreprises ---------- */
+async function apiGet(path, params){
+  const u = new URL(API+path);
+  Object.entries(params).forEach(([k,v])=>{ if(v!==""&&v!=null) u.searchParams.set(k,v); });
+  for(let attempt=0; attempt<3; attempt++){
+    const r = await fetch(u, {headers:{Accept:"application/json"}});
+    if(r.status===429){ await sleep(1200*(attempt+1)); continue; }
+    if(!r.ok) throw new Error("API "+r.status);
+    return r.json();
+  }
+  throw new Error("Trop de requêtes, réessayez dans un instant");
+}
+function dirigeantsOf(ul){
+  return (ul.dirigeants||[]).slice(0,4).map(d=>{
+    const who = d.type_dirigeant==="personne morale" ? (d.denomination||"") : [d.prenoms?.split(" ")[0], d.nom].filter(Boolean).map(s=>s[0]+s.slice(1).toLowerCase()).join(" ");
+    return {who, role:d.qualite||""};
+  }).filter(d=>d.who);
+}
+function lastFinance(ul){
+  const f = ul.finances; if(!f) return null;
+  const years = Object.keys(f).sort(); const y = years[years.length-1];
+  return y && f[y] && f[y].ca!=null ? {year:y, ca:f[y].ca, res:f[y].resultat_net} : null;
+}
+/** Normalise un couple (unité légale, établissement) en fiche exploitable par l'app */
+function normalize(ul, et){
+  et = et || ul.siege || {};
+  const ens = (et.liste_enseignes||[])[0];
+  const legal = ul.nom_raison_sociale || ul.nom_complet || "";
+  return {
+    siret: et.siret, siren: ul.siren,
+    name: ens && ens.toUpperCase()!==legal.toUpperCase() ? ens : (ul.nom_complet || legal),
+    legalName: ul.nom_complet || legal,
+    address: et.adresse || "", lat: parseFloat(et.latitude), lng: parseFloat(et.longitude),
+    naf: et.activite_principale || ul.activite_principale || "",
+    effectifEt: et.tranche_effectif_salarie || "", effectifUl: ul.tranche_effectif_salarie || "",
+    forme: ul.nature_juridique || "", categorie: ul.categorie_entreprise || "",
+    creation: ul.date_creation || "", siege: !!et.est_siege, siegeAddress: ul.siege?.adresse || "",
+    dirigeants: dirigeantsOf(ul), finance: lastFinance(ul),
+    open: (et.etat_administratif||"A")==="A", diffusible: ul.statut_diffusion!=="P" && !/NON-DIFFUSIBLE/i.test(ul.nom_complet||"")
+  };
+}
+function passesFilters(c){
+  if(!c.open || !c.diffusible || isNaN(c.lat)) return false;
+  if(settings.excludePublic && (c.forme||"")[0]==="7") return false;
+  if(settings.excludeGE && c.categorie==="GE") return false;
+  if(settings.employers && (!c.effectifUl || c.effectifUl==="NN" || c.effectifUl==="00")) return false;
+  return true;
+}
+
+/* ---------- Carte ---------- */
+let map, meMarker, meAccuracy, radiusCircle, layer, pos=null, searchCenter=null;
+let companies = new Map();   // siret -> fiche
+let lastQuery = null;        // {lat,lng,radius,sector,page,totalPages,total}
+let watching = false;
+
+function initMap(){
+  map = L.map("map",{zoomControl:false, attributionControl:true, tap:false}).setView([14.6415,-61.0242], 11);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19, attribution:"© OpenStreetMap"}).addTo(map);
+  layer = L.layerGroup().addTo(map);
+  setupLongPress();
+  // Restaure la dernière recherche (consultation hors-ligne)
+  try{
+    const saved = JSON.parse(localStorage.getItem("lastSearch")||"null");
+    if(saved && saved.items){ saved.items.forEach(c=>companies.set(c.siret,c)); lastQuery=saved.q; searchCenter={lat:saved.q.lat,lng:saved.q.lng}; map.setView([saved.q.lat,saved.q.lng], zoomFor(saved.q.radius)); drawMarkers(); }
+  }catch(e){}
+}
+const zoomFor = r => r<=100?18:r<=300?17:r<=500?16:r<=1000?15:r<=2000?14:13;
+
+function startGeoloc(){
+  if(!("geolocation" in navigator)){ $("#count").textContent="GPS indisponible"; return; }
+  let first = true;
+  navigator.geolocation.watchPosition(p=>{
+    pos = {lat:p.coords.latitude, lng:p.coords.longitude, acc:p.coords.accuracy};
+    const ll=[pos.lat,pos.lng];
+    if(!meMarker){ meMarker=L.marker(ll,{icon:L.divIcon({className:"",html:'<div class="me"></div>',iconSize:[18,18]}),interactive:false,zIndexOffset:1000}).addTo(map); meAccuracy=L.circle(ll,{radius:pos.acc,weight:0,fillOpacity:.08,interactive:false}).addTo(map); }
+    else { meMarker.setLatLng(ll); meAccuracy.setLatLng(ll).setRadius(pos.acc); }
+    if(first){ first=false; map.setView(ll, zoomFor(settings.radius)); search(); }
+  }, err=>{
+    $("#count").textContent = err.code===1 ? "Autorisez la localisation (Réglages iPhone › Safari)" : "Position introuvable";
+  }, {enableHighAccuracy:true, maximumAge:15000, timeout:20000});
+}
+
+async function search(more=false){
+  const center = more && lastQuery ? {lat:lastQuery.lat,lng:lastQuery.lng} : (pos ? {lat:pos.lat,lng:pos.lng} : null);
+  if(!center){ toast("Position GPS en attente…"); return; }
+  if(!navigator.onLine){ toast("Hors ligne : recherche impossible, saisie manuelle disponible"); return; }
+  const btn=$("#btn-refresh"); btn.classList.add("spin");
+  const prog=$("#progress");
+  if(!more){ companies.clear(); lastQuery={lat:center.lat,lng:center.lng,radius:settings.radius,sector:settings.sector,page:0,totalPages:1,total:0}; searchCenter=center; }
+  const pagesToLoad = more ? 1 : 4;   // 4 × 25 = 100 entreprises au premier chargement
+  try{
+    for(let i=0;i<pagesToLoad;i++){
+      if(lastQuery.page>=lastQuery.totalPages) break;
+      const page = lastQuery.page+1;
+      prog.style.width = ((i+1)/pagesToLoad*100)+"%";
+      const data = await apiGet("/near_point",{lat:center.lat.toFixed(6), long:center.lng.toFixed(6), radius:(settings.radius/1000).toString(), per_page:25, page, limite_matching_etablissements:20, section_activite_principale:settings.sector});
+      lastQuery.page=page; lastQuery.totalPages=data.total_pages||1; lastQuery.total=data.total_results||0;
+      for(const ul of data.results||[]){
+        for(const et of (ul.matching_etablissements||[])){
+          const c = normalize(ul, et);
+          if(c.siret && distance(center,c) <= settings.radius*1.05) companies.set(c.siret,c);
+        }
+      }
+      drawMarkers();
+      if(i<pagesToLoad-1) await sleep(180);
+    }
+    try{ localStorage.setItem("lastSearch", JSON.stringify({q:lastQuery, items:[...companies.values()]})); }catch(e){}
+  }catch(e){ toast("Recherche impossible : "+e.message); }
+  finally{ btn.classList.remove("spin"); prog.style.width="0"; setTimeout(()=>prog.style.width="0",300); }
+}
+
+function flagIcon(status){
+  const col = getComputedStyle(document.documentElement).getPropertyValue("--st-"+status).trim() || "#1f8f4e";
+  return L.divIcon({className:"",iconSize:[26,30],iconAnchor:[4,29],html:`<svg class="flag" viewBox="0 0 26 30"><path d="M4 29V2" stroke="#fff" stroke-width="4" stroke-linecap="round"/><path d="M4 29V2" stroke="#12242a" stroke-width="2" stroke-linecap="round"/><path d="M5 3h17l-4 5 4 5H5z" fill="${col}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>`});
+}
+const dotIcon = L.divIcon({className:"",html:'<div class="mk new"></div>',iconSize:[16,16]});
+
+function drawMarkers(){
+  layer.clearLayers();
+  const last = lastVisitMap();
+  const shown = [...companies.values()].filter(passesFilters);
+  // Entreprises visitées manuellement (hors SIRENE) : on les affiche aussi
+  for(const v of last.values()){ if(v.manual && v.lat) shown.push({key:v.key, name:v.name, address:v.address, lat:v.lat, lng:v.lng, manual:true}); }
+  const seen = new Set();
+  for(const c of shown){
+    const k = keyOf(c); if(seen.has(k)) continue; seen.add(k);
+    const lv = last.get(k);
+    const m = L.marker([c.lat,c.lng],{icon: lv ? flagIcon(lv.status) : dotIcon, zIndexOffset: lv?500:0, title:c.name});
+    m.on("click",()=> c.manual ? openHistory(k) : openCompany(c));
+    layer.addLayer(m);
+  }
+  if(radiusCircle) radiusCircle.remove();
+  if(searchCenter) radiusCircle = L.circle([searchCenter.lat,searchCenter.lng],{radius:(lastQuery?.radius)||settings.radius,color:getComputedStyle(document.documentElement).getPropertyValue("--accent").trim(),weight:1.5,fillOpacity:.04,dashArray:"4 6",interactive:false}).addTo(map);
+  const n = [...companies.values()].filter(passesFilters).length;
+  const r = lastQuery ? fmtDist(lastQuery.radius) : "";
+  $("#count").innerHTML = lastQuery ? `<b>${n}</b> entreprise${n>1?"s":""} · ${r}` + (lastQuery.total>0 && lastQuery.page<lastQuery.totalPages ? ` <span style="opacity:.7">sur ${lastQuery.total.toLocaleString("fr-FR")}</span>`:"") : "Localisation…";
+  $("#btn-more").hidden = !(lastQuery && lastQuery.page<lastQuery.totalPages);
+}
+
+/* Appui long (~500 ms) : identifier ou saisir un lieu non référencé */
+function setupLongPress(){
+  const el = map.getContainer(); let t=null, start=null;
+  const cancel=()=>{ clearTimeout(t); t=null; };
+  el.addEventListener("touchstart",e=>{
+    if(e.touches.length!==1){ cancel(); return; }
+    const p=e.touches[0]; start={x:p.clientX,y:p.clientY};
+    t=setTimeout(()=>{ t=null; const rect=el.getBoundingClientRect(); const ll=map.containerPointToLatLng([start.x-rect.left,start.y-rect.top]); navigator.vibrate?.(30); onLongPress(ll); },520);
+  },{passive:true});
+  el.addEventListener("touchmove",e=>{ if(!t||!start) return; const p=e.touches[0]; if(Math.hypot(p.clientX-start.x,p.clientY-start.y)>10) cancel(); },{passive:true});
+  el.addEventListener("touchend",cancel); el.addEventListener("touchcancel",cancel);
+  map.on("contextmenu",e=>onLongPress(e.latlng)); // souris (ordinateur)
+}
+async function onLongPress(ll){
+  const tmp = L.circleMarker(ll,{radius:9,color:"#e86f3e",weight:3,fillOpacity:.3}).addTo(map);
+  openSheet(`<div class="co-sub">Point sélectionné</div><div class="co-name">Recherche à cet endroit…</div>`, ()=>tmp.remove());
+  let address="", near=[];
+  const tasks = [];
+  tasks.push(fetch(`${GEO_REVERSE}?lon=${ll.lng}&lat=${ll.lat}&limit=1`).then(r=>r.json()).then(j=>{ address=j.features?.[0]?.properties?.label||""; }).catch(()=>{}));
+  if(navigator.onLine) tasks.push(apiGet("/near_point",{lat:ll.lat.toFixed(6),long:ll.lng.toFixed(6),radius:"0.06",per_page:15,limite_matching_etablissements:5}).then(d=>{
+    for(const ul of d.results||[]) for(const et of ul.matching_etablissements||[]){ const c=normalize(ul,et); if(c.open&&c.diffusible&&!isNaN(c.lat)) near.push({c,d:distance({lat:ll.lat,lng:ll.lng},c)}); }
+    near.sort((a,b)=>a.d-b.d); near=near.slice(0,8);
+  }).catch(()=>{}));
+  await Promise.all(tasks);
+  const manual = {key:"manual_"+Date.now(), name:"", address, lat:ll.lat, lng:ll.lng, manual:true};
+  $("#sheet-body").innerHTML = `
+    <div class="co-sub">Point sélectionné</div>
+    <div class="co-name">${esc(address||"Adresse inconnue")}</div>
+    ${near.length?`<h2>Entreprises à cet endroit</h2><div class="list results">${near.map((n,i)=>tileCompany(n.c,n.d,i)).join("")}</div>`:`<p class="co-sub">Aucune entreprise référencée à moins de 60 m.</p>`}
+    <div style="height:12px"></div>
+    <button class="btn block" id="lp-manual">Saisir une entreprise non référencée</button>`;
+  $("#sheet-body").querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>{ tmp.remove(); openCompany(near[+b.dataset.i].c); });
+  $("#lp-manual").onclick=()=>{ tmp.remove(); closeSheet(true); openVisitForm(manual); };
+}
+
+function tileCompany(c, d, i){
+  const lv = lastVisitMap().get(keyOf(c));
+  const col = lv ? `var(--st-${lv.status})` : "var(--line)";
+  return `<button class="tile" data-i="${i}"><span class="stripe" style="background:${col}"></span><span style="min-width:0"><div class="t">${esc(c.name)}</div><div class="s">${esc(nafLabel(c.naf)||c.naf)}${c.effectifUl&&EFFECTIFS[c.effectifUl]&&c.effectifUl!=="NN"?" · "+esc(EFFECTIFS[c.effectifUl])+" sal.":""}</div></span><span class="d tabular">${d!=null?fmtDist(d):""}${lv?`<br>${esc(STATUSES[lv.status].label)}`:""}</span></button>`;
+}
+
+/* ---------- Feuille entreprise ---------- */
+let sheetOnClose=null;
+function openSheet(html, onClose){
+  if(sheetOnClose){ const f=sheetOnClose; sheetOnClose=null; f(); }
+  $("#sheet-body").innerHTML = html; $("#sheet-body").scrollTop=0; sheetOnClose=onClose||null;
+  const s=$("#scrim"); s.hidden=false; requestAnimationFrame(()=>{ s.classList.add("on"); $("#sheet").classList.add("on"); });
+}
+function closeSheet(silent){
+  $("#sheet").classList.remove("on"); $("#scrim").classList.remove("on"); setTimeout(()=>$("#scrim").hidden=true,200);
+  if(sheetOnClose && !silent){ const f=sheetOnClose; sheetOnClose=null; f(); } else sheetOnClose=null;
+}
+$("#scrim").onclick=()=>closeSheet();
+// Glisser vers le bas pour fermer
+(()=>{ const sh=$("#sheet"); let y0=null; sh.addEventListener("touchstart",e=>{ if($("#sheet-body").scrollTop<=0) y0=e.touches[0].clientY; },{passive:true}); sh.addEventListener("touchmove",e=>{ if(y0!=null&&e.touches[0].clientY-y0>90){ y0=null; closeSheet(); } },{passive:true}); sh.addEventListener("touchend",()=>y0=null); })();
+
+function companyBlock(c){
+  const dir = c.dirigeants?.length ? c.dirigeants.map(d=>`${esc(d.who)}${d.role?` <span class="co-sub">· ${esc(d.role)}</span>`:""}`).join("<br>") : "";
+  return `<dl class="kv">
+    <dt>SIRET</dt><dd class="tabular">${esc(fmtSiret(c.siret))}${c.siege?' <span class="tag">Siège</span>':''}</dd>
+    ${c.naf?`<dt>Activité</dt><dd>${esc(nafLabel(c.naf))} <span class="co-sub tabular">(${esc(c.naf)})</span></dd>`:""}
+    ${c.forme?`<dt>Forme</dt><dd>${esc(formeLabel(c.forme))}</dd>`:""}
+    ${c.effectifUl?`<dt>Effectif</dt><dd>${esc(EFFECTIFS[c.effectifUl]||c.effectifUl)}${c.effectifUl!=="NN"&&c.effectifUl!=="00"?" salariés":""}${c.effectifEt&&c.effectifEt!=="NN"&&c.effectifEt!==c.effectifUl?`<br><span class="co-sub">Sur ce site : ${esc(EFFECTIFS[c.effectifEt]||c.effectifEt)}</span>`:""}</dd>`:""}
+    ${c.finance?`<dt>CA ${esc(c.finance.year)}</dt><dd class="tabular">${fmtEur(c.finance.ca)}${c.finance.res!=null?` <span class="co-sub">· résultat ${fmtEur(c.finance.res)}</span>`:""}</dd>`:""}
+    ${c.creation?`<dt>Création</dt><dd class="tabular">${new Date(c.creation).toLocaleDateString("fr-FR",{month:"long",year:"numeric"})}</dd>`:""}
+    ${dir?`<dt>Dirigeant${c.dirigeants.length>1?"s":""}</dt><dd>${dir}</dd>`:""}
+    ${!c.siege&&c.siegeAddress?`<dt>Siège</dt><dd>${esc(c.siegeAddress)}</dd>`:""}
+  </dl>`;
+}
+function openCompany(c){
+  const k = keyOf(c); const hist = visitsFor(k); const lv = hist[0];
+  const d = pos ? distance(pos,c) : null;
+  const q = encodeURIComponent(c.name+" "+c.address);
+  openSheet(`
+    <div class="chips" style="margin-top:6px">${c.categorie?`<span class="tag">${esc(CATEGORIES[c.categorie]||c.categorie)}</span>`:""}${sectionOf(c.naf)?`<span class="tag">${esc(SECTIONS[sectionOf(c.naf)])}</span>`:""}${d!=null?`<span class="tag tabular">à ${fmtDist(d)}</span>`:""}</div>
+    <div class="co-name">${esc(c.name)}</div>
+    ${c.legalName&&c.legalName!==c.name?`<div class="co-sub">${esc(c.legalName)}</div>`:""}
+    <div class="co-sub">${esc(c.address)}</div>
+    <div style="height:12px"></div>
+    ${lv?`<button class="card" id="co-last" style="width:100%;text-align:left;display:flex;align-items:center;gap:10px;border:0;margin-bottom:12px"><span class="st ${lv.status}">${esc(STATUSES[lv.status].label)}</span><span style="flex:1;min-width:0"><span class="co-sub">Dernière visite le ${fmtDate(lv.date)}${hist.length>1?` · ${hist.length} visites`:""}</span></span><span aria-hidden="true">›</span></button>`:""}
+    <button class="btn block" id="co-visit">Enregistrer une visite</button>
+    <h2>Données SIRENE</h2>
+    <div class="card">${companyBlock(c)}</div>
+    <div class="row links" style="margin-top:12px">
+      <a class="btn ghost sm" href="https://maps.apple.com/?daddr=${c.lat},${c.lng}" target="_blank" rel="noopener">Itinéraire</a>
+      <a class="btn ghost sm" href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank" rel="noopener">Téléphone / avis</a>
+      <a class="btn ghost sm" href="https://www.pappers.fr/entreprise/${esc(c.siren)}" target="_blank" rel="noopener">Pappers</a>
+      <a class="btn ghost sm" href="https://annuaire-entreprises.data.gouv.fr/entreprise/${esc(c.siren)}" target="_blank" rel="noopener">Annuaire officiel</a>
+    </div>`);
+  $("#co-visit").onclick=()=>{ closeSheet(); openVisitForm(c); };
+  if(lv) $("#co-last").onclick=()=>{ closeSheet(); openHistory(k, c); };
+}
+
+/* Liste des entreprises proches, triées par distance */
+function openNearbyList(){
+  const ref = pos || searchCenter;
+  const items = [...companies.values()].filter(passesFilters).map(c=>({c,d:ref?distance(ref,c):null})).sort((a,b)=>(a.d??0)-(b.d??0));
+  if(!items.length){ toast("Aucune entreprise chargée"); return; }
+  openSheet(`<div class="co-name">${items.length} entreprise${items.length>1?"s":""} à proximité</div><div class="co-sub">Triées par distance</div><div style="height:10px"></div><div class="list results">${items.map((x,i)=>tileCompany(x.c,x.d,i)).join("")}</div>`);
+  $("#sheet-body").querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>openCompany(items[+b.dataset.i].c));
+}
+
+/* ---------- Modales ---------- */
+let modalStack=[];
+function openModal({title, left="Fermer", right="", onRight=null, html, onLeft=null}){
+  const m=$("#modal");
+  $("#m-title").textContent=title; $("#m-left").textContent=left; $("#m-right").textContent=right;
+  $("#m-left").onclick = onLeft || closeModal; $("#m-right").onclick = onRight; $("#m-right").hidden=!right;
+  $("#m-body").innerHTML=html; $("#m-body").scrollTop=0;
+  requestAnimationFrame(()=>m.classList.add("on"));
+}
+function closeModal(){ $("#modal").classList.remove("on"); }
+
+/* ---------- Recherche par nom / SIREN ---------- */
+function openSearch(prefill=""){
+  openModal({title:"Rechercher", html:`
+    <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input class="inp" id="s-q" type="search" placeholder="Nom, SIREN ou SIRET" value="${esc(prefill)}" autocomplete="off"></div>
+    <div class="co-sub" id="s-info">Territoire : ${esc(document.querySelector(`#set-dept option[value="${settings.dept}"]`)?.textContent||"France")} (modifiable dans Réglages)</div>
+    <div style="height:10px"></div><div class="list results" id="s-res"></div>`});
+  const inp=$("#s-q"); let tm, items=[];
+  const run = async()=>{
+    const q=inp.value.trim(); if(q.length<3){ $("#s-res").innerHTML=""; return; }
+    $("#s-info").textContent="Recherche…";
+    try{
+      const digits=q.replace(/\s/g,"");
+      const isId=/^\d{9}(\d{5})?$/.test(digits);
+      const d=await apiGet("/search",{q:isId?digits:q, departement:isId?"":settings.dept, per_page:20, limite_matching_etablissements:3, etat_administratif:"A"});
+      items=[];
+      for(const ul of d.results||[]){
+        let et = (ul.matching_etablissements||[]).find(e=>isId&&digits.length===14?e.siret===digits:e.etat_administratif==="A") || ul.siege;
+        const c=normalize(ul,et); if(c.diffusible) items.push(c);
+      }
+      $("#s-info").textContent = items.length ? `${d.total_results.toLocaleString("fr-FR")} résultat${d.total_results>1?"s":""}` : "Aucun résultat";
+      $("#s-res").innerHTML = items.map((c,i)=>`<button class="tile" data-i="${i}"><span class="stripe" style="background:var(--line)"></span><span style="min-width:0"><div class="t">${esc(c.name)}</div><div class="s">${esc(c.address)}</div></span><span class="d">›</span></button>`).join("");
+      $("#s-res").querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>{ const c=items[+b.dataset.i]; closeModal(); if(!isNaN(c.lat)) map.setView([c.lat,c.lng],17); companies.set(c.siret,c); drawMarkers(); setTab("map"); openCompany(c); });
+    }catch(e){ $("#s-info").textContent = navigator.onLine ? "Erreur : "+e.message : "Hors ligne"; }
+  };
+  inp.oninput=()=>{ clearTimeout(tm); tm=setTimeout(run,400); };
+  setTimeout(()=>inp.focus(),300); if(prefill) run();
+}
+
+/* ---------- Formulaire de visite ---------- */
+function openVisitForm(c, existing){
+  const v = existing ? {...existing} : {
+    id:uid(), key:c.key||c.siret, siret:c.siret||"", siren:c.siren||"", name:c.name||"", address:c.address||"", lat:c.lat, lng:c.lng,
+    naf:c.naf||"", nafLabel:nafLabel(c.naf), forme:formeLabel(c.forme), effectif:EFFECTIFS[c.effectifUl]||"", dirigeant:c.dirigeants?.[0]?`${c.dirigeants[0].who} (${c.dirigeants[0].role})`:"",
+    manual:!!c.manual, date:new Date().toISOString(), status:"", contactName:"", contactRole:"", contactPhone:"", contactEmail:"", solutions:[], notes:"", callbackDate:""
+  };
+  const manual = v.manual;
+  openModal({title: existing?"Modifier la visite":"Nouvelle visite", left:"Annuler", right:"Enregistrer", onRight:()=>save(), html:`
+    <div class="stack">
+      ${manual?`<label class="f">Nom de l'entreprise *<input id="v-name" value="${esc(v.name)}" autocomplete="organization"></label>
+      <label class="f">Adresse<input id="v-addr" value="${esc(v.address)}"></label>`:`<div><div class="co-name" style="font-size:18px;margin:0">${esc(v.name)}</div><div class="co-sub">${esc(v.address)}</div></div>`}
+      <div><div class="f" style="font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:6px">Statut *</div>
+        <div class="stchips" id="v-status">${STATUS_ORDER.map(s=>`<button type="button" data-s="${s}" aria-pressed="${v.status===s}"><i></i>${STATUSES[s].label}</button>`).join("")}</div>
+        <div class="err" id="v-status-err" hidden>Choisissez un statut</div></div>
+      <label class="f" id="v-cb-wrap" ${v.status==="callback"?"":"hidden"}>Date de rappel<input type="date" id="v-cb" value="${esc(v.callbackDate||todayYMD(+settings.delay))}"></label>
+      <div><div class="f" style="font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:6px">Solutions évoquées</div>
+        <div class="sol" id="v-sol">${SOLUTIONS.map(s=>`<button type="button" data-v="${s}" aria-pressed="${v.solutions.includes(s)}">${s}</button>`).join("")}</div></div>
+      <label class="f">Nom du contact<input id="v-cname" value="${esc(v.contactName)}" autocomplete="name"></label>
+      <label class="f">Fonction<input id="v-crole" value="${esc(v.contactRole)}" placeholder="Gérant, DAF, comptable…"></label>
+      <label class="f">Téléphone<input id="v-cphone" type="tel" value="${esc(v.contactPhone)}" autocomplete="tel"></label>
+      <label class="f">E-mail<input id="v-cemail" type="email" value="${esc(v.contactEmail)}" autocomplete="email" autocapitalize="off"><span class="err" id="v-email-err" hidden>Adresse e-mail invalide</span></label>
+      <label class="f">Notes<textarea id="v-notes" placeholder="Besoin, outils actuels, prochaine étape… (dictée vocale : micro du clavier)">${esc(v.notes)}</textarea></label>
+      <label class="f">SIRET<input id="v-siret" inputmode="numeric" value="${esc(v.siret)}" placeholder="14 chiffres"></label>
+      ${manual?`<button type="button" class="btn ghost sm" id="v-lookup">Compléter depuis le SIRET / SIREN</button>`:""}
+      <button class="btn block" id="v-save">Enregistrer la visite</button>
+    </div>`});
+  $("#v-status").onclick=e=>{ const b=e.target.closest("button"); if(!b) return; v.status=b.dataset.s; $("#v-status").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b)); $("#v-cb-wrap").hidden=v.status!=="callback"; $("#v-status-err").hidden=true; };
+  $("#v-sol").onclick=e=>{ const b=e.target.closest("button"); if(!b) return; const on=b.getAttribute("aria-pressed")!=="true"; b.setAttribute("aria-pressed",on); };
+  $("#v-save").onclick=()=>save();
+  if(manual) $("#v-lookup").onclick=async()=>{
+    const id=$("#v-siret").value.replace(/\D/g,""); if(!/^\d{9}(\d{5})?$/.test(id)){ toast("Saisissez 9 ou 14 chiffres"); return; }
+    try{ const d=await apiGet("/search",{q:id,per_page:1,limite_matching_etablissements:5}); const ul=d.results?.[0]; if(!ul){ toast("Introuvable dans SIRENE"); return; }
+      const et=(ul.matching_etablissements||[]).find(e=>e.siret===id)||ul.siege; const c2=normalize(ul,et);
+      Object.assign(v,{siret:c2.siret,siren:c2.siren,naf:c2.naf,nafLabel:nafLabel(c2.naf),forme:formeLabel(c2.forme),effectif:EFFECTIFS[c2.effectifUl]||"",dirigeant:c2.dirigeants[0]?`${c2.dirigeants[0].who} (${c2.dirigeants[0].role})`:""});
+      $("#v-name").value=c2.name; if(!$("#v-addr").value) $("#v-addr").value=c2.address; $("#v-siret").value=c2.siret; toast("Fiche complétée : "+c2.name);
+    }catch(e){ toast("Recherche impossible : "+e.message); }
+  };
+  async function save(){
+    v.contactName=$("#v-cname").value.trim(); v.contactRole=$("#v-crole").value.trim(); v.contactPhone=$("#v-cphone").value.trim();
+    v.contactEmail=$("#v-cemail").value.trim(); v.notes=$("#v-notes").value.trim(); v.siret=$("#v-siret").value.replace(/\D/g,"");
+    v.solutions=[...$("#v-sol").querySelectorAll('[aria-pressed="true"]')].map(b=>b.dataset.v);
+    v.callbackDate = v.status==="callback" ? $("#v-cb").value : "";
+    if(manual){ v.name=$("#v-name").value.trim(); v.address=$("#v-addr").value.trim(); if(!v.name){ toast("Le nom de l'entreprise est obligatoire"); $("#v-name").focus(); return; } }
+    if(!v.status){ $("#v-status-err").hidden=false; $("#v-status").scrollIntoView({block:"center",behavior:"smooth"}); return; }
+    if(v.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.contactEmail)){ $("#v-email-err").hidden=false; $("#v-cemail").focus(); return; }
+    v.updated=new Date().toISOString();
+    try{ await DB.put(v); }catch(e){ toast("Échec de l'enregistrement"); return; }
+    await loadVisits(); refreshAll(); closeModal(); toast(existing?"Visite modifiée":"Visite enregistrée");
+  }
+}
+
+/* ---------- Détail d'une visite ---------- */
+function openVisitDetail(id){
+  const v = visits.find(x=>x.id===id); if(!v) return;
+  const tel = v.contactPhone ? `<a href="tel:${esc(v.contactPhone.replace(/\s/g,""))}">${esc(v.contactPhone)}</a>` : "";
+  const mail = v.contactEmail ? `<a href="mailto:${esc(v.contactEmail)}">${esc(v.contactEmail)}</a>` : "";
+  openModal({title:"Visite", right:"Modifier", onRight:()=>openVisitForm(null,v), html:`
+    <div class="stack">
+      <div class="hero ${v.status}"><b>${esc(STATUSES[v.status].label)}</b><span style="opacity:.92">${esc(fmtDate(v.date,true))}</span>${v.callbackDate?`<br><span style="opacity:.92">Rappel prévu ${esc(fmtDay(v.callbackDate))}</span>`:""}</div>
+      ${v.notes?`<div><h2 style="margin-top:4px">Notes</h2><div class="notes">${esc(v.notes)}</div></div>`:""}
+      <div><h2>Entreprise</h2><div class="card"><div style="font-weight:700">${esc(v.name)}</div><div class="co-sub">${esc(v.address)}</div><div style="height:8px"></div>
+        <dl class="kv">${v.siret?`<dt>SIRET</dt><dd class="tabular">${esc(fmtSiret(v.siret))}</dd>`:""}${v.naf?`<dt>Activité</dt><dd>${esc(v.nafLabel)} <span class="co-sub">(${esc(v.naf)})</span></dd>`:""}${v.forme?`<dt>Forme</dt><dd>${esc(v.forme)}</dd>`:""}${v.effectif?`<dt>Effectif</dt><dd>${esc(v.effectif)}</dd>`:""}${v.dirigeant?`<dt>Dirigeant</dt><dd>${esc(v.dirigeant)}</dd>`:""}</dl></div></div>
+      <div><h2>Contact</h2><div class="card">${v.contactName||v.contactPhone||v.contactEmail?`<dl class="kv">${v.contactName?`<dt>Nom</dt><dd>${esc(v.contactName)}</dd>`:""}${v.contactRole?`<dt>Fonction</dt><dd>${esc(v.contactRole)}</dd>`:""}${tel?`<dt>Téléphone</dt><dd class="tabular">${tel}</dd>`:""}${mail?`<dt>E-mail</dt><dd>${mail}</dd>`:""}</dl>`:`<span class="co-sub">Aucun contact saisi</span>`}</div></div>
+      ${v.solutions?.length?`<div><h2>Solutions évoquées</h2><div class="chips">${v.solutions.map(s=>`<span class="tag" style="font-size:13px">${esc(s)}</span>`).join("")}</div></div>`:""}
+      <div class="row">${v.callbackDate?`<button class="btn ghost" id="d-ics" style="flex:1">Ajouter le rappel au calendrier</button>`:""}<button class="btn ghost" id="d-hist" style="flex:1">Historique de l'entreprise</button></div>
+      <button class="btn danger block" id="d-del">Supprimer cette visite</button>
+    </div>`});
+  $("#d-del").onclick=async()=>{ if(!await confirmBox("Supprimer définitivement cette visite ?")) return; await DB.del(v.id); await loadVisits(); refreshAll(); closeModal(); toast("Visite supprimée"); };
+  $("#d-hist").onclick=()=>openHistory(v.key);
+  if(v.callbackDate) $("#d-ics").onclick=()=>exportICS(v);
+}
+
+/* ---------- Historique par entreprise ---------- */
+function openHistory(key, c){
+  const h = visitsFor(key); const name = h[0]?.name || c?.name || "";
+  openModal({title:name, right: "+ Visite", onRight:()=>{ const base = c || {...h[0], key:h[0].key, manual:h[0].manual}; openVisitForm(companyFromVisit(base)); }, html:`
+    <div class="co-sub">${esc(h[0]?.address||c?.address||"")}</div><div style="height:14px"></div>
+    <div class="hist">${h.map(v=>`<div class="card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span class="st ${v.status}">${esc(STATUSES[v.status].label)}</span><span class="co-sub tabular" style="flex:1">${esc(fmtDate(v.date,true))}</span></div>
+      ${v.contactName?`<div><b>${esc(v.contactName)}</b>${v.contactRole?` · ${esc(v.contactRole)}`:""}</div>`:""}
+      ${v.notes?`<div class="notes" style="margin-top:8px;font-size:14.5px">${esc(v.notes)}</div>`:""}
+      ${v.siret?`<div class="co-sub tabular" style="margin-top:6px">SIRET ${esc(fmtSiret(v.siret))}</div>`:""}
+      <div class="row" style="margin-top:8px"><button class="btn ghost sm" data-open="${v.id}">Détail</button><button class="btn danger sm" data-del="${v.id}">Supprimer</button></div></div>`).join("")||'<div class="empty">Aucune visite</div>'}</div>`});
+  $("#m-body").querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>openVisitDetail(b.dataset.open));
+  $("#m-body").querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{ if(!await confirmBox("Supprimer cette visite ?")) return; await DB.del(b.dataset.del); await loadVisits(); refreshAll(); if(visitsFor(key).length) openHistory(key,c); else closeModal(); toast("Visite supprimée"); });
+}
+function companyFromVisit(v){
+  if(v.siret && companies.has(v.siret)) return companies.get(v.siret);
+  return {key:v.key, siret:v.siret, siren:v.siren, name:v.name, address:v.address, lat:v.lat, lng:v.lng, naf:v.naf, manual:v.manual, dirigeants:[]};
+}
+
+/* ---------- Écrans listes ---------- */
+let visitFilter = "";
+function renderVisits(){
+  const counts = Object.fromEntries(STATUS_ORDER.map(s=>[s,0])); visits.forEach(v=>counts[v.status]++);
+  $("#summary").innerHTML = STATUS_ORDER.map(s=>`<button class="${s}" data-s="${s}" aria-pressed="${visitFilter===s}"><b>${counts[s]}</b><span>${STATUSES[s].label}</span></button>`).join("");
+  $("#summary").querySelectorAll("button").forEach(b=>b.onclick=()=>{ visitFilter = visitFilter===b.dataset.s ? "" : b.dataset.s; renderVisits(); });
+  const q = ($("#visit-q").value||"").toLowerCase();
+  const list = visits.filter(v=>(!visitFilter||v.status===visitFilter) && (!q || [v.name,v.contactName,v.notes,v.address].join(" ").toLowerCase().includes(q)));
+  $("#visit-list").innerHTML = list.length ? list.map(v=>`<button class="tile" data-id="${v.id}"><span class="stripe" style="background:var(--st-${v.status})"></span><span style="min-width:0"><div class="t">${esc(v.name)}</div><div class="s">${esc(STATUSES[v.status].label)}${v.contactName?" · "+esc(v.contactName):""}${v.solutions?.length?" · "+esc(v.solutions.join(", ")):""}</div></span><span class="d tabular">${esc(fmtDate(v.date))}</span></button>`).join("")
+    : `<div class="empty">${visits.length?"Aucune visite ne correspond au filtre.":"Aucune visite pour l'instant.<br>Touchez une entreprise sur la carte pour commencer."}</div>`;
+  $("#visit-list").querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>openVisitDetail(b.dataset.id));
+}
+function pendingCallbacks(){
+  const last = lastVisitMap();
+  return [...last.values()].filter(v=>v.status==="callback" && v.callbackDate).sort((a,b)=>a.callbackDate.localeCompare(b.callbackDate));
+}
+function renderCalls(){
+  const list = pendingCallbacks(); const t=todayYMD();
+  const due = list.filter(v=>v.callbackDate<=t).length;
+  const badge=$("#call-badge"); badge.hidden=!due; badge.textContent=due;
+  $("#call-list").innerHTML = list.length ? list.map(v=>`<button class="tile ${v.callbackDate<t?"overdue":""}" data-id="${v.id}"><span class="stripe" style="background:var(--st-callback)"></span><span style="min-width:0"><div class="t">${esc(v.name)}</div><div class="s">${esc(v.contactName||"Contact non renseigné")}${v.contactPhone?" · "+esc(v.contactPhone):""}</div></span><span class="d tabular">${v.callbackDate<t?"En retard<br>":v.callbackDate===t?"Aujourd'hui<br>":""}${esc(fmtDay(v.callbackDate))}</span></button>`).join("")
+    : `<div class="empty">Aucun rappel en attente.</div>`;
+  $("#call-list").querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>openVisitDetail(b.dataset.id));
+}
+function renderSettings(){
+  $("#set-employers").checked=settings.employers; $("#set-public").checked=settings.excludePublic; $("#set-ge").checked=settings.excludeGE;
+  $("#set-dept").value=settings.dept; $("#set-delay").value=String(settings.delay); $("#set-name").value=settings.name;
+  const companiesN = new Set(visits.map(v=>v.key)).size;
+  $("#data-stats").textContent = `${visits.length} visite${visits.length>1?"s":""} · ${companiesN} entreprise${companiesN>1?"s":""} · stockées sur cet appareil`;
+  $("#ver").textContent = "Version "+VERSION;
+}
+function refreshAll(){ drawMarkers(); renderVisits(); renderCalls(); renderSettings(); }
+
+/* ---------- Exports ---------- */
+async function shareOrDownload(filename, content, mime){
+  const blob = new Blob([content],{type:mime});
+  const file = new File([blob], filename, {type:mime});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title:filename}); return; }catch(e){ if(e.name==="AbortError") return; }
+  }
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=filename; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
+}
+function exportCSV(){
+  if(!visits.length){ toast("Aucune visite à exporter"); return; }
+  const cols=["Date","Commercial","Entreprise","Adresse","SIRET","Code NAF","Activité","Forme juridique","Effectif","Dirigeant","Statut","Date de rappel","Solutions","Contact","Fonction","Téléphone","Email","Notes"];
+  const cell = s => { s=String(s??""); return /[;"\n\r]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+  const rows = visits.map(v=>[new Date(v.date).toLocaleString("fr-FR"),settings.name,v.name,v.address,v.siret?"\u200B"+v.siret:"",v.naf,v.nafLabel,v.forme,v.effectif,v.dirigeant,STATUSES[v.status].label,v.callbackDate,(v.solutions||[]).join(", "),v.contactName,v.contactRole,v.contactPhone,v.contactEmail,v.notes].map(cell).join(";"));
+  shareOrDownload(`visites_${todayYMD()}.csv`, "\uFEFF"+[cols.join(";"),...rows].join("\r\n"), "text/csv");
+}
+function exportICS(v){
+  const d=v.callbackDate.replace(/-/g,""); const stamp=new Date().toISOString().replace(/[-:]/g,"").slice(0,15)+"Z";
+  const txt = s => String(s||"").replace(/\\/g,"\\\\").replace(/\n/g,"\\n").replace(/[,;]/g,m=>"\\"+m);
+  const ics=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Prospection Terrain//FR","BEGIN:VEVENT",`UID:${v.id}@prospection`,`DTSTAMP:${stamp}`,`DTSTART:${d}T090000`,`DTEND:${d}T091500`,`SUMMARY:${txt("Rappeler "+v.name)}`,`DESCRIPTION:${txt([v.contactName,v.contactPhone,v.contactEmail,v.notes].filter(Boolean).join("\n"))}`,`LOCATION:${txt(v.address)}`,"BEGIN:VALARM","TRIGGER:-PT0M","ACTION:DISPLAY","DESCRIPTION:Rappel","END:VALARM","END:VEVENT","END:VCALENDAR"].join("\r\n");
+  shareOrDownload(`rappel_${v.name.replace(/[^\w]+/g,"_").slice(0,30)}.ics`, ics, "text/calendar");
+}
+function exportBackup(){ shareOrDownload(`prospection_sauvegarde_${todayYMD()}.json`, JSON.stringify({app:"prospection-terrain",version:VERSION,exported:new Date().toISOString(),settings,visits},null,1), "application/json"); }
+async function importBackup(file){
+  try{
+    const data = JSON.parse(await file.text());
+    if(!Array.isArray(data.visits)) throw new Error("fichier non reconnu");
+    const ids = new Set(visits.map(v=>v.id)); let added=0;
+    for(const v of data.visits){ if(v && v.id && v.status && !ids.has(v.id)){ await DB.put(v); added++; } }
+    await loadVisits(); refreshAll(); toast(`${added} visite${added>1?"s":""} restaurée${added>1?"s":""}`);
+  }catch(e){ toast("Restauration impossible : "+e.message); }
+}
+
+/* ---------- Navigation & évènements ---------- */
+function setTab(t){
+  document.querySelectorAll("#tabbar button").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===t));
+  ["map","visits","calls","settings"].forEach(s=>$("#scr-"+s).hidden = s!==t);
+  if(t==="map") setTimeout(()=>map.invalidateSize(),50);
+  closeSheet(); closeModal();
+}
+document.querySelectorAll("#tabbar button").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+
+function renderRadius(){
+  $("#radius").innerHTML = RADII.map(r=>`<button aria-pressed="${settings.radius===r}" data-r="${r}">${fmtDist(r)}</button>`).join("");
+  $("#radius").querySelectorAll("button").forEach(b=>b.onclick=()=>{ settings.radius=+b.dataset.r; saveSettings(); renderRadius(); if(pos) map.setView([pos.lat,pos.lng],zoomFor(settings.radius)); search(); });
+}
+function renderSector(){
+  const opts = Object.entries(SECTIONS).filter(([k])=>!["T","U"].includes(k));
+  $("#sector").innerHTML = `<option value="">Tous secteurs</option>`+opts.map(([k,l])=>`<option value="${k}">${esc(l)}</option>`).join("");
+  $("#sector").value = settings.sector;
+  $("#sector").onchange = ()=>{ settings.sector=$("#sector").value; saveSettings(); search(); };
+}
+$("#btn-refresh").onclick=()=>search();
+$("#btn-more").onclick=()=>search(true);
+$("#btn-locate").onclick=()=>{ if(pos) map.setView([pos.lat,pos.lng], zoomFor(settings.radius)); else toast("Position GPS en attente…"); };
+$("#btn-list").onclick=openNearbyList;
+$("#btn-search").onclick=()=>openSearch();
+$("#visit-q").oninput=renderVisits;
+$("#set-employers").onchange=e=>{ settings.employers=e.target.checked; saveSettings(); drawMarkers(); };
+$("#set-public").onchange=e=>{ settings.excludePublic=e.target.checked; saveSettings(); drawMarkers(); };
+$("#set-ge").onchange=e=>{ settings.excludeGE=e.target.checked; saveSettings(); drawMarkers(); };
+$("#set-dept").onchange=e=>{ settings.dept=e.target.value; saveSettings(); };
+$("#set-delay").onchange=e=>{ settings.delay=+e.target.value; saveSettings(); };
+$("#set-name").onchange=e=>{ settings.name=e.target.value.trim(); saveSettings(); };
+$("#btn-csv").onclick=exportCSV;
+$("#btn-backup").onclick=exportBackup;
+$("#restore-file").onchange=e=>{ const f=e.target.files[0]; if(f) importBackup(f); e.target.value=""; };
+setTimeout(()=>{ const h=$("#hint"); if(h) h.hidden=true; }, 7000);
+window.addEventListener("online",()=>toast("Connexion rétablie"));
+window.addEventListener("offline",()=>toast("Hors ligne : les visites restent enregistrées sur l'iPhone"));
+
+/* ---------- Démarrage ---------- */
+(async()=>{
+  initMap(); renderRadius(); renderSector();
+  await loadVisits(); refreshAll();
+  startGeoloc();
+  try{ navigator.storage?.persist?.(); }catch(e){}
+  if("serviceWorker" in navigator && location.protocol==="https:") navigator.serviceWorker.register("sw.js").catch(()=>{});
+})();
+</script>
+</body>
+</html>

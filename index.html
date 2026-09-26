@@ -19,6 +19,7 @@
   --accent:#0e4c52; --accent-ink:#ffffff; --accent-soft:#d6ebec; --coral:#e86f3e;
   --st-interested:#2563c9; --st-callback:#d98a0b; --st-refused:#c93a32; --st-signed:#1f8f4e;
   --notes-bg:#fff6d6; --notes-line:#ecd98f;
+  --od-client:#15803d; --od-opp:#ea7a0c; --od-qual:#eab308; --od-connu:#64808c; --od-inconnu:#c0352b;
   --shadow:0 6px 24px rgba(10,40,45,.16);
   color-scheme:light;
 }
@@ -97,9 +98,13 @@ select.pillsel{appearance:none;-webkit-appearance:none;border:0;background:none;
 .pin{width:30px;height:38px}
 .more{border:0;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:12px;border-radius:999px;padding:4px 10px;flex:none}
 
-/* Marqueurs */
-.mk{width:16px;height:16px;border-radius:50%;background:var(--st-refused);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
-.mk.new{background:#b3342c}
+/* Marqueurs — couleur du point = relation Odoo (V2) */
+.mk{width:16px;height:16px;border-radius:50%;background:var(--od-inconnu);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.mk.new{background:var(--od-inconnu)}
+.mk.client{background:var(--od-client);width:18px;height:18px}
+.mk.opportunite{background:var(--od-opp);width:18px;height:18px}
+.mk.connu{background:var(--od-connu)}
+.mk.pending{background:#a9b6ba}
 .flag{width:26px;height:30px}
 .me{width:18px;height:18px;border-radius:50%;background:#1a73e8;border:3px solid #fff;box-shadow:0 0 0 6px rgba(26,115,232,.2)}
 
@@ -240,6 +245,35 @@ details.equip[open]{padding-bottom:14px}
 .due{font-size:11.5px;font-weight:700;color:#fff;background:var(--st-callback);border-radius:999px;padding:1px 7px;margin-left:4px;white-space:nowrap}
 .due.past{background:var(--st-refused)}
 .foot{color:var(--muted);font-size:12px;margin-top:24px;line-height:1.5}
+/* ============ V2 : Odoo ============ */
+.od{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;border-radius:999px;padding:3px 10px;color:#fff}
+.od.client{background:var(--od-client)} .od.opportunite{background:var(--od-opp)} .od.connu{background:var(--od-connu)} .od.inconnu{background:var(--od-inconnu)}
+.od-dot{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:-1px;margin-right:4px}
+.odbox{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:14px;display:flex;flex-direction:column;gap:10px}
+.odbox .hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.odbox .hd .ttl{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-right:auto}
+.odsub{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:4px 0 -2px}
+.opp{border-left:3px solid var(--od-opp);padding:4px 0 4px 10px;font-size:14px}
+.opp b{font-weight:650}
+.opp .m{font-size:12.5px;color:var(--muted)}
+.onote{border-left:3px solid var(--notes-line);padding:2px 0 2px 10px;font-size:14px;white-space:pre-wrap;user-select:text;-webkit-user-select:text}
+.onote .m{display:block;font-size:12px;color:var(--muted);margin-bottom:2px;white-space:normal}
+.lgd{display:flex;flex-direction:column;gap:8px;font-size:14.5px}
+.lgd > span{display:flex;align-items:center;gap:8px}
+.lgd svg{flex:none}
+.lgd i{width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35);flex:none}
+.fchoice{display:flex;flex-direction:column;gap:6px}
+.fchoice button{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:11px 12px;text-align:left;font-weight:600;display:flex;align-items:center;gap:10px}
+.fchoice button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.fchoice button small{margin-left:auto;color:var(--muted);font-weight:600}
+.iconbtn.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+#login{position:fixed;inset:0;z-index:1500;background:var(--bg);overflow:auto;padding:calc(env(safe-area-inset-top,0px) + 28px) 20px calc(28px + env(safe-area-inset-bottom,0px))}
+#login .inner{max-width:440px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+#login .logo{width:56px;height:56px;border-radius:14px}
+#login details{font-size:13.5px;color:var(--muted)}
+#login details summary{cursor:pointer;font-weight:600;color:var(--accent)}
+#login ol{padding-left:20px;margin:8px 0 0}
+.linkbtn{border:0;background:none;color:var(--accent);font-weight:600;padding:6px 0;text-align:left}
 </style>
 </head>
 <body>
@@ -269,6 +303,7 @@ details.equip[open]{padding-bottom:14px}
       </div>
     </div>
     <div class="fabs">
+      <button class="iconbtn fab" id="btn-legend" aria-label="Légende et filtre Odoo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 5h16l-6 7v6l-4 2v-8z"/></svg></button>
       <button class="iconbtn fab" id="btn-list" aria-label="Liste des entreprises proches"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
       <button class="iconbtn fab" id="btn-search" aria-label="Rechercher une entreprise"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
       <button class="iconbtn fab" id="btn-locate" aria-label="Recentrer sur ma position"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 3 3 7.5z"/></svg></button>
@@ -293,6 +328,8 @@ details.equip[open]{padding-bottom:14px}
   <!-- ======= Écran Réglages ======= -->
   <section class="screen pad" id="scr-settings" hidden>
     <h1>Réglages</h1>
+    <h2>Compte Odoo</h2>
+    <div class="card stack" id="odoo-card"></div>
     <h2>Recherche</h2>
     <div class="card">
       <label class="toggle"><span>Employeurs uniquement<small>Masque les entreprises sans salarié déclaré</small></span><input type="checkbox" id="set-employers"></label>
@@ -343,6 +380,27 @@ details.equip[open]{padding-bottom:14px}
 </div>
 <div class="toast" id="toast" role="status"></div>
 
+<!-- ======= V2 : connexion Odoo ======= -->
+<div id="login" hidden>
+  <div class="inner">
+    <img class="logo" src="icon-192.png" alt="">
+    <h1 style="margin:0">Prospection Terrain</h1>
+    <div class="co-sub">Connectez-vous avec votre compte Odoo TRIMARG.</div>
+    <label class="f">Identifiant Odoo<input id="lg-login" type="email" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="prenom.nom@trimarg.com"></label>
+    <label class="f">Clé API Odoo<input id="lg-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Collez votre clé API"></label>
+    <div class="err" id="lg-err" hidden></div>
+    <button class="btn block" id="lg-go">Se connecter</button>
+    <details><summary>Où trouver ma clé API ?</summary>
+      <ol><li>Dans Odoo, cliquez sur votre avatar → <b>Mon profil</b> (ou Préférences).</li>
+      <li>Onglet <b>Sécurité du compte</b> → <b>Nouvelle clé API</b>.</li>
+      <li>Nommez-la « Prospection », choisissez la durée, confirmez votre mot de passe.</li>
+      <li>Copiez la clé affichée (elle n'est montrée qu'une fois) et collez-la ici.</li></ol>
+      <p>La clé est vérifiée par Odoo puis conservée chiffrée par le relais TRIMARG ; elle n'est pas stockée sur ce téléphone. L'app voit ce que vous voyez dans Odoo, avec vos droits.</p>
+    </details>
+    <button class="linkbtn" id="lg-skip" hidden>Continuer sans connexion (fonctions Odoo indisponibles)</button>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 "use strict";
@@ -353,7 +411,10 @@ details.equip[open]{padding-bottom:14px}
    - Carte : Leaflet + OpenStreetMap
    - Stockage : IndexedDB sur l'appareil (aucun serveur)
    ===================================================================== */
-const VERSION = "1.4.0";
+const VERSION = "2.1.0";
+/* V2 : relais TRIMARG (Cloudflare Worker) entre l'app et Odoo. Aucun secret ici. */
+const RELAY = "https://prospection.trimarg-prospection.workers.dev";
+const IS_ANDROID = /android/i.test(navigator.userAgent);
 const API = "https://recherche-entreprises.api.gouv.fr";
 const GEO_REVERSE = "https://data.geopf.fr/geocodage/reverse";
 
@@ -547,7 +608,7 @@ async function search(more=false){
           if(c.siret && distance(center,c) <= settings.radius*1.05) companies.set(c.siret,c);
         }
       }
-      drawMarkers();
+      drawMarkers(); odooRefreshStatus();
       if(i<pagesToLoad-1) await sleep(180);
     }
     try{ localStorage.setItem("lastSearch", JSON.stringify({q:lastQuery, items:[...companies.values()]})); }catch(e){}
@@ -559,28 +620,63 @@ function flagIcon(status){
   const col = getComputedStyle(document.documentElement).getPropertyValue("--st-"+status).trim() || "#1f8f4e";
   return L.divIcon({className:"",iconSize:[26,30],iconAnchor:[4,29],html:`<svg class="flag" viewBox="0 0 26 30"><path d="M4 29V2" stroke="#fff" stroke-width="4" stroke-linecap="round"/><path d="M4 29V2" stroke="#12242a" stroke-width="2" stroke-linecap="round"/><path d="M5 3h17l-4 5 4 5H5z" fill="${col}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>`});
 }
-const dotIcon = L.divIcon({className:"",html:'<div class="mk new"></div>',iconSize:[16,16]});
+/* ---------- Marqueurs V2.1 : un rond coloré pour toutes les entreprises ----------
+   Vert = client · Orange = opportunité en cours · Jaune = prospect qualifié (visité + équipement renseigné)
+   Rouge = prospect (non rattaché / sans opportunité) · Gris = statut Odoo en cours de chargement
+   Point blanc au centre = déjà visitée · Montre = un contrat se termine dans 6 mois ou moins */
+const CAT_VAR = {client:"--od-client", opportunite:"--od-opp", qualifie:"--od-qual", prospect:"--od-inconnu", pending:"--od-connu"};
+const iconCache = {};
+function markerIcon(cat, visited, clock){
+  const k = cat+"|"+visited+"|"+clock; if(iconCache[k]) return iconCache[k];
+  const col = getComputedStyle(document.documentElement).getPropertyValue(CAT_VAR[cat]||"--od-inconnu").trim();
+  const big = cat==="client"||cat==="opportunite";
+  const r = big?9.5:8.5;
+  const html = `<svg width="30" height="30" viewBox="0 0 30 30" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,.45));overflow:visible">
+    <circle cx="15" cy="15" r="${r}" fill="${col}" stroke="#fff" stroke-width="2.5"/>
+    ${visited?`<circle cx="15" cy="15" r="3.2" fill="#fff"/>`:""}
+    ${clock?`<g transform="translate(20.5 3.5)"><circle cx="4.5" cy="4.5" r="5.6" fill="#fff" stroke="#12242a" stroke-width="1.2"/><circle cx="4.5" cy="4.5" r="3.4" fill="none" stroke="#b45309" stroke-width="1.3"/><path d="M4.5 2.6v2.1l1.4 1" fill="none" stroke="#b45309" stroke-width="1.2" stroke-linecap="round"/></g>`:""}
+  </svg>`;
+  return iconCache[k] = L.divIcon({className:"", html, iconSize:[30,30], iconAnchor:[15,15]});
+}
+/** Équipement connu (dernière visite qui en porte un) */
+function equipOf(key){ return visitsFor(key).find(x=>x.equip)?.equip || null; }
+function hasEquip(key){ const e=equipOf(key); return !!e && Object.values(e).some(g=>Object.values(g||{}).some(v=>String(v||"").trim())); }
+/** Un contrat (copieur, GED, compta) se termine dans 6 mois ou moins (ou est échu) */
+function contractSoon(key){ const e=equipOf(key); if(!e) return false; return ["copieur","ged","compta"].some(g=>{ const m=monthsLeft(e[g]?.fin); return m!=null && m<=6; }); }
+/** Catégorie d'affichage d'une entreprise */
+function markerCat(c, lv){
+  const od = odooState(c);
+  if(od==="client") return "client";
+  if(od==="opportunite") return "opportunite";
+  if(lv && hasEquip(keyOf(c))) return "qualifie";
+  if(od==="pending") return "pending";
+  return "prospect";
+}
 
 function drawMarkers(){
   layer.clearLayers();
   const last = lastVisitMap();
   const shown = [...companies.values()].filter(passesFilters);
   // Entreprises visitées manuellement (hors SIRENE) : on les affiche aussi
-  for(const v of last.values()){ if(v.manual && v.lat) shown.push({key:v.key, name:v.name, address:v.address, lat:v.lat, lng:v.lng, manual:true}); }
+  for(const v of last.values()){ if(v.manual && v.lat) shown.push({key:v.key, name:v.name, address:v.address, lat:v.lat, lng:v.lng, manual:true, siret:v.siret||""}); }
   const seen = new Set();
   for(const c of shown){
     const k = keyOf(c); if(seen.has(k)) continue; seen.add(k);
     const lv = last.get(k);
-    const m = L.marker([c.lat,c.lng],{icon: lv ? flagIcon(lv.status) : dotIcon, zIndexOffset: lv?500:0, title:c.name});
-    m.on("click",()=> c.manual ? openHistory(k) : openCompany(c));
+    const cat = markerCat(c, lv), clock = contractSoon(k);
+    if(!passesOdooFilter(cat, lv, clock)) continue;
+    const m = L.marker([c.lat,c.lng],{icon: markerIcon(cat, !!lv, clock), zIndexOffset: cat==="client"||cat==="opportunite"?400:(cat==="qualifie"?300:(lv?200:0)), title:c.name});
+    m.on("click",()=> c.manual ? openManual(c) : openCompany(c));
     layer.addLayer(m);
   }
   if(radiusCircle) radiusCircle.remove();
   if(searchCenter) radiusCircle = L.circle([searchCenter.lat,searchCenter.lng],{radius:(lastQuery?.radius)||settings.radius,color:getComputedStyle(document.documentElement).getPropertyValue("--accent").trim(),weight:1.5,fillOpacity:.04,dashArray:"4 6",interactive:false}).addTo(map);
-  const n = [...companies.values()].filter(passesFilters).length;
+  const n = [...companies.values()].filter(c=>{ const lv=last.get(keyOf(c)); return passesFilters(c) && passesOdooFilter(markerCat(c,lv), lv, contractSoon(keyOf(c))); }).length;
   const r = lastQuery ? fmtDist(lastQuery.radius) : "";
   $("#count").innerHTML = lastQuery ? `<b>${n}</b> entreprise${n>1?"s":""} · ${r}` + (lastQuery.total>0 && lastQuery.page<lastQuery.totalPages ? ` <span style="opacity:.7">sur ${lastQuery.total.toLocaleString("fr-FR")}</span>`:"") : "Localisation…";
+  if(odooFilter) $("#count").innerHTML += ` · <span style="color:var(--accent);font-weight:700">${esc(ODOO_FILTERS[odooFilter])}</span>`;
   $("#btn-more").hidden = !(lastQuery && lastQuery.page<lastQuery.totalPages);
+  $("#btn-legend")?.classList.toggle("on", !!odooFilter);
 }
 
 /* ---------- Prospection autour d'une adresse ----------
@@ -670,7 +766,8 @@ async function onLongPress(ll){
 function tileCompany(c, d, i){
   const lv = lastVisitMap().get(keyOf(c));
   const col = lv ? `var(--st-${lv.status})` : "var(--line)";
-  return `<button class="tile" data-i="${i}"><span class="stripe" style="background:${col}"></span><span style="min-width:0"><div class="t">${esc(c.name)}</div><div class="s">${esc(nafLabel(c.naf)||c.naf)}${c.effectifUl&&EFFECTIFS[c.effectifUl]&&c.effectifUl!=="NN"?" · "+esc(EFFECTIFS[c.effectifUl])+" sal.":""}</div></span><span class="d tabular">${d!=null?fmtDist(d):""}${lv?`<br>${esc(STATUSES[lv.status].label)}`:""}</span></button>`;
+  const cat = markerCat(c, lv);
+  return `<button class="tile" data-i="${i}"><span class="stripe" style="background:${col}"></span><span style="min-width:0"><div class="t"><i class="od-dot" style="background:var(${CAT_VAR[cat]})"></i>${contractSoon(keyOf(c))?"⏱ ":""}${esc(c.name)}</div><div class="s">${esc(nafLabel(c.naf)||c.naf)}${c.effectifUl&&EFFECTIFS[c.effectifUl]&&c.effectifUl!=="NN"?" · "+esc(EFFECTIFS[c.effectifUl])+" sal.":""}</div></span><span class="d tabular">${d!=null?fmtDist(d):""}${lv?`<br>${esc(STATUSES[lv.status].label)}`:""}</span></button>`;
 }
 
 /* ---------- Feuille entreprise ---------- */
@@ -713,6 +810,7 @@ function openCompany(c){
     <div style="height:12px"></div>
     ${lv?`<button class="card" id="co-last" style="width:100%;text-align:left;display:flex;align-items:center;gap:10px;border:0;margin-bottom:12px"><span class="st ${lv.status}">${esc(STATUSES[lv.status].label)}</span><span style="flex:1;min-width:0"><span class="co-sub">Dernière visite le ${fmtDate(lv.date)}${hist.length>1?` · ${hist.length} visites`:""}</span></span><span aria-hidden="true">›</span></button>`:""}
     <button class="btn block" id="co-visit">Enregistrer une visite</button>
+    <div id="co-odoo"></div>
     <h2>Données SIRENE</h2>
     <div class="card">${companyBlock(c)}</div>
     ${c.siren?`<button class="btn ghost block" id="co-carto" style="margin-top:12px">Cartographie gratuite (données publiques)</button>`:""}
@@ -720,7 +818,7 @@ function openCompany(c){
       <button class="btn sm pp" id="co-pp-fiche">Fiche complète<small>${pCache("fiche:"+c.siren)?"déjà chargée · gratuit":"1 jeton"}</small></button>
       <button class="btn sm pp" id="co-pp-carto">Cartographie<small>${pCache("carto:"+c.siren)?"déjà chargée · gratuit":"3 jetons"}</small></button></div></div>`:""}
     <div class="row links" style="margin-top:12px">
-      <a class="btn ghost sm" href="https://maps.apple.com/?daddr=${c.lat},${c.lng}" target="_blank" rel="noopener">Itinéraire</a>
+      <a class="btn ghost sm" href="${IS_ANDROID?`https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`:`https://maps.apple.com/?daddr=${c.lat},${c.lng}`}" target="_blank" rel="noopener">Itinéraire</a>
       <a class="btn ghost sm" href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank" rel="noopener">Téléphone / avis</a>
       <a class="btn ghost sm" href="https://www.pappers.fr/entreprise/${esc(c.siren)}" target="_blank" rel="noopener">Pappers</a>
       <a class="btn ghost sm" href="https://annuaire-entreprises.data.gouv.fr/entreprise/${esc(c.siren)}" target="_blank" rel="noopener">Annuaire officiel</a>
@@ -732,6 +830,7 @@ function openCompany(c){
     $("#co-pp-fiche").onclick=()=>{ closeSheet(); openPappersFiche(c); };
     $("#co-pp-carto").onclick=()=>{ closeSheet(); openPappersCarto(c); };
   }
+  renderOdooBlock(c);
 }
 
 /* ---------- Cartographie (façon Pappers) ----------
@@ -1155,6 +1254,7 @@ function renderSettings(){
   const companiesN = new Set(visits.map(v=>v.key)).size;
   $("#data-stats").textContent = `${visits.length} visite${visits.length>1?"s":""} · ${companiesN} entreprise${companiesN>1?"s":""} · stockées sur cet appareil`;
   $("#ver").textContent = "Version "+VERSION;
+  renderOdooCard();
 }
 function refreshAll(){ drawMarkers(); renderVisits(); renderCalls(); renderSettings(); }
 
@@ -1191,6 +1291,302 @@ async function importBackup(file){
   }catch(e){ toast("Restauration impossible : "+e.message); }
 }
 
+/* =====================================================================
+   V2 — Connexion Odoo via le relais TRIMARG (lecture seule dans ce lot)
+   - identification par clé API Odoo personnelle (vérifiée et chiffrée par le relais)
+   - statut de chaque entreprise par SIREN : client / opportunité / connue / inconnue
+   - bloc « Odoo » dans la fiche : opportunités, produits acquis, contacts, notes, activités
+   ===================================================================== */
+let odooAuth = null;   // {token, login, name, admin, expires, odooUrl}
+try{ odooAuth = JSON.parse(localStorage.getItem("odooAuth")||"null"); }catch(e){}
+function saveAuth(){ try{ odooAuth ? localStorage.setItem("odooAuth",JSON.stringify(odooAuth)) : localStorage.removeItem("odooAuth"); }catch(e){} }
+
+/** Appel au relais ; une session expirée renvoie à l'écran de connexion */
+async function relay(path, {method="GET", body=null}={}){
+  if(!odooAuth) throw new Error("Non connecté à Odoo");
+  const r = await fetch(RELAY+path, {method, headers:{"Content-Type":"application/json", Authorization:"Bearer "+odooAuth.token}, body: body?JSON.stringify(body):null});
+  let j={}; try{ j = await r.json(); }catch(e){}
+  if(r.status===401){ odooAuth=null; saveAuth(); showLogin("Session expirée : reconnectez-vous."); throw new Error("Session expirée"); }
+  if(!r.ok) throw new Error(j.error || ("Relais "+r.status));
+  return j;
+}
+
+/* ---------- Écran de connexion ---------- */
+function showLogin(msg){
+  const w=$("#login"); w.hidden=false;
+  const e=$("#lg-err"); e.hidden=!msg; e.textContent=msg||"";
+  try{ $("#lg-login").value = localStorage.getItem("odooLogin")||""; }catch(err){}
+}
+function hideLogin(){ $("#login").hidden=true; }
+$("#lg-go").onclick = async ()=>{
+  const login=$("#lg-login").value.trim(), apiKey=$("#lg-key").value.trim(), e=$("#lg-err"), b=$("#lg-go");
+  if(!login||!apiKey){ e.hidden=false; e.textContent="Identifiant et clé API obligatoires."; return; }
+  b.disabled=true; b.textContent="Vérification auprès d'Odoo…"; e.hidden=true;
+  try{
+    const r = await fetch(RELAY+"/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({login,apiKey})});
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok || !j.token) throw new Error(j.error||("Erreur "+r.status));
+    odooAuth = {token:j.token, login:j.login, name:j.name, admin:!!j.admin, expires:j.expires, odooUrl:j.odooUrl};
+    saveAuth(); try{ localStorage.setItem("odooLogin", login); }catch(err){}
+    $("#lg-key").value="";
+    if(!settings.name){ settings.name=j.name; saveSettings(); }
+    hideLogin(); toast("Connecté : "+j.name); renderSettings(); odooRefreshStatus();
+  }catch(err){
+    e.hidden=false; e.textContent = navigator.onLine ? err.message : "Pas de réseau : la connexion à Odoo est impossible pour l'instant.";
+    $("#lg-skip").hidden=false;   // secours si le relais ou le réseau sont indisponibles
+  }finally{ b.disabled=false; b.textContent="Se connecter"; }
+};
+$("#lg-key").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#lg-go").click(); });
+$("#lg-skip").onclick = hideLogin;
+
+/** Vérifie en arrière-plan que la session est toujours valide (clé révoquée, etc.) */
+async function odooCheckSession(){
+  if(!navigator.onLine) return;
+  try{ const me = await relay("/auth/me"); odooAuth = {...odooAuth, name:me.name, admin:!!me.admin, expires:me.expires}; saveAuth(); renderOdooCard(); }catch(e){}
+}
+
+function renderOdooCard(){
+  const el=$("#odoo-card"); if(!el) return;
+  if(!odooAuth){ el.innerHTML=`<div class="co-sub">Non connecté : couleurs client / opportunité et bloc Odoo indisponibles.</div><button class="btn block" id="od-login">Se connecter à Odoo</button>`; $("#od-login").onclick=()=>showLogin(); return; }
+  const n = Object.keys(odooCache.map).length;
+  el.innerHTML = `<dl class="kv"><dt>Connecté</dt><dd><b>${esc(odooAuth.name)}</b>${odooAuth.admin?' <span class="tag">Admin</span>':""}<br><span class="co-sub">${esc(odooAuth.login)}</span></dd>
+    <dt>Session</dt><dd class="tabular">jusqu'au ${esc(fmtDate(odooAuth.expires))}</dd>
+    <dt>Statuts</dt><dd class="tabular">${n} entreprise${n>1?"s":""} en mémoire</dd></dl>
+    <div class="row"><button class="btn ghost sm" id="od-refresh">Actualiser les données Odoo</button><button class="btn danger sm" id="od-logout">Se déconnecter</button></div>`;
+  $("#od-refresh").onclick = async ()=>{
+    try{ toast("Actualisation…"); await relay("/odoo/index/refresh",{method:"POST"}); odooCache.map={}; saveOdooCache(); await odooRefreshStatus(true); toast("Données Odoo actualisées"); renderOdooCard(); }
+    catch(e){ toast("Actualisation impossible : "+e.message); }
+  };
+  $("#od-logout").onclick = async ()=>{
+    if(!await confirmBox("Se déconnecter d'Odoo sur ce téléphone ?","Se déconnecter")) return;
+    try{ await relay("/auth/logout",{method:"POST"}); }catch(e){}
+    odooAuth=null; saveAuth(); odooCache.map={}; saveOdooCache(); drawMarkers(); renderOdooCard(); showLogin();
+  };
+}
+
+/* ---------- Statut Odoo par SIREN (mis en cache sur le téléphone pour le hors-ligne) ---------- */
+const ODOO_TTL = 30*60*1000;          // 30 min avant de redemander un statut
+let odooCache = {map:{}};             // siren -> {status, partners, produits, opps, at}
+try{ odooCache = JSON.parse(localStorage.getItem("odooStatus")||'{"map":{}}'); if(!odooCache.map) odooCache={map:{}}; }catch(e){}
+function saveOdooCache(){
+  try{
+    const e=Object.entries(odooCache.map);
+    if(e.length>3000){ e.sort((a,b)=>b[1].at-a[1].at); odooCache.map=Object.fromEntries(e.slice(0,2500)); }
+    localStorage.setItem("odooStatus", JSON.stringify(odooCache));
+  }catch(err){}
+}
+/* Liens « saisie manuelle → fiche Odoo » (entreprises absentes de la base publique) */
+let odooLinks = {};
+try{ odooLinks = JSON.parse(localStorage.getItem("odooLinks")||"{}"); }catch(e){}
+function saveLinks(){ try{ localStorage.setItem("odooLinks", JSON.stringify(odooLinks)); }catch(e){} }
+const sirenOf = c => { if(c.manual){ const l=odooLinks[c.key]; if(l?.siren) return l.siren; } return (c.siren || String(c.siret||"").slice(0,9) || ""); };
+/** Clé du cache de statut : SIREN, ou « id:<fiche Odoo> » pour une saisie manuelle rattachée sans SIREN */
+function statusKey(c){ const s=sirenOf(c); if(/^\d{9}$/.test(s)) return s; if(c.manual && odooLinks[c.key]) return "id:"+odooLinks[c.key].id; return ""; }
+/** "client" | "opportunite" | "connu" | "inconnu" | "pending" | "" (non connecté) */
+function odooState(c){
+  if(!odooAuth) return "";
+  const k=statusKey(c); if(!k) return "inconnu";
+  const x = odooCache.map[k]; return x ? x.status : "pending";
+}
+
+let odooBusy = false, odooAgain = false;
+async function odooRefreshStatus(force=false){
+  if(!odooAuth || !navigator.onLine) return;
+  if(odooBusy){ odooAgain=true; return; }
+  odooBusy = true;
+  try{
+    const now=Date.now();
+    const stale = k => force || !odooCache.map[k] || now-odooCache.map[k].at>ODOO_TTL;
+    // Saisies manuelles rattachées : statut par SIREN ou par fiche Odoo
+    const manualKeys = Object.keys(odooLinks).map(k=>({key:k, manual:true})).map(statusKey);
+    const ids=[...new Set(manualKeys.filter(k=>k.startsWith("id:") && stale(k)).map(k=>+k.slice(3)))];
+    if(ids.length){ const j=await relay("/odoo/status",{method:"POST",body:{ids}}); for(const id of ids){ const r=j.results?.[id]; odooCache.map["id:"+id] = r?{...r,at:now}:{status:"connu",partners:[],at:now}; } saveOdooCache(); drawMarkers(); }
+    const todo=[...new Set([...companies.values()].map(sirenOf).concat(manualKeys).filter(s=>/^\d{9}$/.test(s) && stale(s)))];
+    for(let i=0;i<todo.length;i+=100){
+      const chunk=todo.slice(i,i+100);
+      const j = await relay("/odoo/lookup",{method:"POST",body:{sirens:chunk}});
+      for(const s of chunk){ const r=j.results?.[s]; odooCache.map[s] = r ? {...r, at:now} : {status:"inconnu", at:now}; }
+      saveOdooCache(); drawMarkers();
+    }
+  }catch(e){ if(!/Session expirée/.test(e.message)) console.warn("Odoo :", e.message); }
+  finally{ odooBusy=false; if(odooAgain){ odooAgain=false; odooRefreshStatus(); } }
+}
+
+/* ---------- Filtre & légende ---------- */
+const ODOO_FILTERS = {client:"Clients", opportunite:"Opportunités en cours", qualifie:"Prospects qualifiés", prospect:"Prospects", contrat:"Fin de contrat ≤ 6 mois", never:"Jamais visitées"};
+let odooFilter = "";
+function passesOdooFilter(cat, lv, clock){
+  if(!odooFilter) return true;
+  if(odooFilter==="never") return !lv;
+  if(odooFilter==="contrat") return !!clock;
+  return cat===odooFilter;
+}
+function openLegend(){
+  const last=lastVisitMap(); const all=[...companies.values()].filter(passesFilters);
+  const count = f => { const save=odooFilter; odooFilter=f; const n=all.filter(c=>{ const lv=last.get(keyOf(c)); return passesOdooFilter(markerCat(c,lv), lv, contractSoon(keyOf(c))); }).length; odooFilter=save; return n; };
+  const ic = (cat,v,cl) => markerIcon(cat,v,cl).options.html;
+  openSheet(`<div class="co-name">Légende</div>
+    <div class="lgd" style="margin-top:10px">
+      <span>${ic("client")}<span><b>Client</b> — opportunité « Clos et accepté »</span></span>
+      <span>${ic("opportunite")}<span><b>Opportunité en cours</b></span></span>
+      <span>${ic("qualifie")}<span><b>Prospect qualifié</b> — déjà visité, équipement renseigné</span></span>
+      <span>${ic("prospect")}<span><b>Prospect</b> — non rattaché à Odoo ou sans opportunité</span></span>
+      <span>${ic("prospect",true)}<span>Point blanc : <b>déjà visitée</b></span></span>
+      <span>${ic("prospect",false,true)}<span>Montre : <b>un contrat se termine</b> dans 6 mois ou moins</span></span>
+    </div>
+    ${odooAuth?"":`<p class="warn" style="margin-top:12px">Connectez-vous à Odoo (Réglages) pour afficher les clients et opportunités.</p>`}
+    <h2>Afficher</h2>
+    <div class="fchoice">
+      <button data-f="" aria-pressed="${!odooFilter}">Toutes les entreprises<small>${all.length}</small></button>
+      ${Object.entries(ODOO_FILTERS).map(([k,l])=>`<button data-f="${k}" aria-pressed="${odooFilter===k}">${esc(l)}<small>${count(k)}</small></button>`).join("")}
+    </div>`);
+  $("#sheet-body").querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{ odooFilter=b.dataset.f; drawMarkers(); closeSheet(); });
+}
+
+/* ---------- Bloc « Odoo » de la fiche entreprise ---------- */
+const OD_LABEL = {client:"Client", opportunite:"Opportunité en cours", connu:"Connue dans Odoo", inconnu:"Non rattachée"};
+let odooSeq = 0;
+function oppLine(o){
+  return `<div class="opp"><b>${esc(o.name)}</b><div class="m">${esc(o.stage)}${o.user?" · "+esc(o.user):""}${o.marge!=null&&o.marge!==false?" · marge "+fmtEur(o.marge):""}</div>
+    <div class="chips" style="margin-top:4px">${(o.tags&&o.tags.length?o.tags:["sans étiquette"]).map(t=>`<span class="tag">${esc(t)}</span>`).join("")}${o.standby?'<span class="tag">Stand-By</span>':""}</div></div>`;
+}
+async function renderOdooBlock(c){
+  const box=$("#co-odoo"); if(!box) return;
+  if(!odooAuth){ box.innerHTML=`<div class="odbox"><div class="hd"><span class="ttl">Odoo</span></div><div class="co-sub">Connectez-vous à Odoo (Réglages) pour voir si l'entreprise est cliente et ses opportunités.</div></div>`; return; }
+  const my=++odooSeq, key=statusKey(c), siren=/^\d{9}$/.test(key)?key:"";
+  if(!key){ renderAttach(c, box, "Non rattachée", c.manual?"Cette entreprise n'est pas dans la base publique. Si elle existe dans Odoo, rattachez-la pour voir ses opportunités.":"Aucune fiche Odoo ne porte ce SIREN."); return; }
+  let st = odooCache.map[key];
+  if(!siren && (!st || Date.now()-st.at>ODOO_TTL) && navigator.onLine){
+    try{ const id=+key.slice(3); const j=await relay("/odoo/status",{method:"POST",body:{ids:[id]}}); st=odooCache.map[key]={...(j.results?.[id]||{status:"connu",partners:[]}),at:Date.now()}; saveOdooCache(); drawMarkers(); }catch(e){}
+  }
+  // Statut inconnu ou périmé : on le demande pour cette seule entreprise
+  if(siren && (!st || Date.now()-st.at>ODOO_TTL) && navigator.onLine){
+    box.innerHTML=`<div class="odbox"><div class="hd"><span class="ttl">Odoo</span><span class="co-sub">Chargement…</span></div></div>`;
+    try{ const j=await relay("/odoo/lookup",{method:"POST",body:{sirens:[siren]}}); const r=j.results?.[siren]; st=odooCache.map[siren]= r?{...r,at:Date.now()}:{status:"inconnu",at:Date.now()}; saveOdooCache(); drawMarkers(); }
+    catch(e){ if(my!==odooSeq) return; box.innerHTML=`<div class="odbox"><div class="hd"><span class="ttl">Odoo</span></div><div class="err">${esc(e.message)}</div></div>`; return; }
+  }
+  if(my!==odooSeq) return;
+  if(!st){ box.innerHTML=`<div class="odbox"><div class="hd"><span class="ttl">Odoo</span></div><div class="co-sub">Hors ligne : statut Odoo non disponible.</div></div>`; return; }
+  if(st.status==="inconnu"){ renderAttach(c, box, "Non rattachée", "Aucune fiche Odoo ne porte ce SIREN. Elle existe peut-être dans Odoo sans SIREN : cherchez-la et rattachez-la."); return; }
+
+  const partners = st.partners||[];
+  let pIdx = 0;
+  const draw = (detail, err) => {
+    const p = partners[pIdx]||{};
+    const status = detail?.status || st.status;
+    const produits = detail?.produits || st.produits || [];
+    const opps = detail?.opportunites || st.opps || [];
+    const notes = detail?.notes || [];
+    const acts = detail?.activites || [];
+    const contacts = detail?.contacts || [];
+    const t = todayYMD();
+    box.innerHTML = `<div class="odbox">
+      <div class="hd"><span class="ttl">Odoo</span><span class="od ${status}">${esc(OD_LABEL[status]||status)}</span></div>
+      ${partners.length>1?`<div class="chips">${partners.map((x,i)=>`<button class="tag" data-p="${i}" style="border:0;${i===pIdx?"background:var(--accent);color:var(--accent-ink)":""}">${esc(x.name)}</button>`).join("")}</div><div class="co-sub">${partners.length} fiches Odoo partagent ce SIREN</div>`:""}
+      <div><b>${esc(p.name||"")}</b>${p.agence?` <span class="co-sub">· ${esc(p.agence)}</span>`:""}</div>
+      ${produits.length?`<div class="odsub">Produits acquis</div><div class="chips">${produits.map(x=>`<span class="tag" style="background:color-mix(in srgb,var(--od-client) 18%,var(--surface));color:var(--od-client)">${esc(x)}</span>`).join("")}</div>`:""}
+      ${opps.length?`<div class="odsub">Opportunités en cours (${opps.length})</div>${opps.map(oppLine).join("")}`:`<div class="co-sub">Aucune opportunité en cours.</div>`}
+      ${acts.length?`<div class="odsub">Activités prévues</div>${acts.map(a=>`<div class="opp" style="border-color:var(--st-callback)"><b>${esc(a.type)}</b>${a.resume?" — "+esc(a.resume):""}<div class="m">${a.echeance?`<span class="${a.echeance<t?"err":""}">${esc(fmtDay(a.echeance))}${a.echeance<t?" · en retard":""}</span>`:""}${a.pour?" · "+esc(a.pour):""}</div>${a.note?`<div class="m">${esc(a.note)}</div>`:""}</div>`).join("")}`:""}
+      ${contacts.length?`<div class="odsub">Contacts (${contacts.length})</div>${contacts.map(x=>`<div style="font-size:14px"><b>${esc(x.name)}</b>${x.function?` <span class="co-sub">· ${esc(x.function)}</span>`:""}<div class="row" style="gap:12px">${x.phone?`<a class="tabular" href="tel:${esc(String(x.phone).replace(/\s/g,""))}">${esc(x.phone)}</a>`:""}${x.mobile?`<a class="tabular" href="tel:${esc(String(x.mobile).replace(/\s/g,""))}">${esc(x.mobile)}</a>`:""}${x.email?`<a href="mailto:${esc(x.email)}">${esc(x.email)}</a>`:""}</div></div>`).join("")}`:""}
+      ${detail?.notesFiche?`<div class="odsub">Notes de la fiche</div><div class="onote">${esc(detail.notesFiche)}</div>`:""}
+      ${notes.length?`<div class="odsub">Notes & échanges (${notes.length})</div><div id="od-notes">${notes.slice(0,4).map(noteLine).join("")}</div>${notes.length>4?`<button class="linkbtn" id="od-more">Voir les ${notes.length} notes</button>`:""}`:""}
+      ${err?`<div class="err">${esc(err)}</div>`:(detail?"":`<div class="co-sub">Chargement des contacts et des notes…</div>`)}
+      ${p.url?`<a class="btn ghost sm" href="${esc(p.url)}" target="_blank" rel="noopener">Ouvrir dans Odoo</a>`:""}
+    </div>`;
+    box.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{ pIdx=+b.dataset.p; load(); });
+    const more=$("#od-more"); if(more) more.onclick=()=>{ $("#od-notes").innerHTML=notes.map(noteLine).join(""); more.remove(); };
+  };
+  const load = async ()=>{
+    const p=partners[pIdx]; if(!p) return draw(null);
+    const ck="odf:"+p.id;
+    let cached=null; try{ cached=JSON.parse(localStorage.getItem(ck)||"null"); }catch(e){}
+    draw(cached?.d||null);
+    if(!navigator.onLine){ if(!cached) draw(null,"Hors ligne : détails indisponibles."); return; }
+    try{
+      const d = await relay("/odoo/societe/"+p.id); if(my!==odooSeq) return;
+      try{ localStorage.setItem(ck, JSON.stringify({at:Date.now(), d})); pruneFiches(); }catch(e){}
+      draw(d);
+    }catch(e){ if(my===odooSeq) draw(cached?.d||null, "Détails Odoo indisponibles : "+e.message); }
+  };
+  load();
+}
+
+/* ---------- Rattachement à une fiche Odoo (recherche par nom) ----------
+   - entreprise de la base publique : écrit son SIRET dans la fiche Odoo choisie (si le champ est vide)
+   - saisie manuelle : mémorise le lien sur ce téléphone (et écrit le SIRET s'il a été saisi) */
+function renderAttach(c, box, badge, text){
+  const q0 = c.legalName || c.name || "";
+  box.innerHTML = `<div class="odbox">
+    <div class="hd"><span class="ttl">Odoo</span><span class="od inconnu">${esc(badge)}</span></div>
+    <div class="co-sub">${esc(text)}</div>
+    <div class="row" style="flex-wrap:nowrap"><input class="inp" id="att-q" value="${esc(q0)}" style="flex:1;min-width:0;padding:8px 10px;font-size:15px"><button class="btn sm" id="att-go">Chercher</button></div>
+    <div id="att-res"></div>
+  </div>`;
+  const go = async ()=>{
+    const q=$("#att-q").value.trim(), out=$("#att-res"); if(q.length<2) return;
+    out.innerHTML=`<div class="co-sub">Recherche dans Odoo…</div>`;
+    try{
+      const j=await relay("/odoo/search",{method:"POST",body:{q, dept:deptOf(c)}});
+      if(!j.results.length){ out.innerHTML=`<div class="co-sub">Aucune fiche Odoo trouvée. La création dans Odoo depuis l'app arrive dans la prochaine version.</div>`; return; }
+      out.innerHTML = j.results.map((r,i)=>`<div class="opp" style="border-color:var(${CAT_VAR[r.status==="connu"?"prospect":r.status]})"><b>${esc(r.name)}</b>
+        <div class="m">${esc([r.zip,r.city].filter(Boolean).join(" "))}${r.agence?" · "+esc(r.agence):""}${r.siret?" · SIREN "+esc(String(r.siret).slice(0,9)):""}${r.opps?" · "+r.opps+" opportunité"+(r.opps>1?"s":""):""}</div>
+        <div class="row" style="margin-top:6px"><span class="od ${r.status}">${esc(OD_LABEL[r.status]||r.status)}</span><button class="btn sm" data-att="${i}">C'est celle-ci</button><a class="btn ghost sm" href="${esc(r.url)}" target="_blank" rel="noopener">Voir</a></div></div>`).join("")
+        + `<div class="co-sub" style="margin-top:6px">Pas dans la liste ? La création dans Odoo arrive dans la prochaine version.</div>`;
+      out.querySelectorAll("[data-att]").forEach(b=>b.onclick=()=>attach(c, j.results[+b.dataset.att], box));
+    }catch(e){ out.innerHTML=`<div class="err">${esc(e.message)}</div>`; }
+  };
+  $("#att-go").onclick=go; $("#att-q").addEventListener("keydown",e=>{ if(e.key==="Enter") go(); });
+}
+function deptOf(c){ const m=String(c.address||"").match(/\b(97[1-4])\d{2}\b/); return m?m[1]:(settings.dept||""); }
+async function attach(c, r, box){
+  const siret = String(c.siret||"").replace(/\D/g,"");
+  const odooSiren = String(r.siret||"").replace(/\D/g,"").slice(0,9);
+  if(siret && odooSiren && odooSiren!==siret.slice(0,9) && !c.manual){
+    toast("Cette fiche Odoo porte déjà un autre SIREN ("+odooSiren+") : rattachement refusé"); return;
+  }
+  if(!await confirmBox(`Rattacher « ${c.name} » à la fiche Odoo « ${r.name} » ?`, "Rattacher")) return;
+  try{
+    let siren = odooSiren;
+    if(siret && !odooSiren){
+      const j = await relay("/odoo/rattacher",{method:"POST",body:{partner_id:r.id, siret}});
+      if(j.conflit){ toast(j.message); return; }
+      siren = j.siren;
+    }
+    if(c.manual){ odooLinks[c.key] = {id:r.id, name:r.name, siren: siren||""}; saveLinks(); }
+    const k = siren || ("id:"+r.id); delete odooCache.map[k]; saveOdooCache();
+    toast("Rattachée à Odoo : "+r.name);
+    await odooRefreshStatus(); renderOdooBlock(c); drawMarkers();
+  }catch(e){ toast("Rattachement impossible : "+e.message); }
+}
+
+/* Fiche d'une entreprise saisie à la main (absente de la base publique) */
+function openManual(c){
+  const hist = visitsFor(c.key); const lv = hist[0];
+  openSheet(`<div class="chips" style="margin-top:6px"><span class="tag">Saisie manuelle</span></div>
+    <div class="co-name">${esc(c.name)}</div><div class="co-sub">${esc(c.address||"")}</div>
+    <div style="height:12px"></div>
+    ${lv?`<button class="card" id="mn-last" style="width:100%;text-align:left;display:flex;align-items:center;gap:10px;border:0;margin-bottom:12px"><span class="st ${lv.status}">${esc(STATUSES[lv.status].label)}</span><span style="flex:1;min-width:0"><span class="co-sub">Dernière visite le ${fmtDate(lv.date)}${hist.length>1?` · ${hist.length} visites`:""}</span></span><span aria-hidden="true">›</span></button>`:""}
+    <button class="btn block" id="mn-visit">Enregistrer une visite</button>
+    <div id="co-odoo"></div>
+    <div class="row links" style="margin-top:12px"><a class="btn ghost sm" href="${IS_ANDROID?`https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`:`https://maps.apple.com/?daddr=${c.lat},${c.lng}`}" target="_blank" rel="noopener">Itinéraire</a>
+    ${odooLinks[c.key]?`<button class="btn ghost sm" id="mn-unlink">Défaire le rattachement Odoo</button>`:""}</div>`);
+  $("#mn-visit").onclick=()=>{ closeSheet(); openVisitForm(companyFromVisit({...lv, key:c.key, manual:true})); };
+  if(lv) $("#mn-last").onclick=()=>{ closeSheet(); openHistory(c.key); };
+  const un=$("#mn-unlink"); if(un) un.onclick=()=>{ delete odooLinks[c.key]; saveLinks(); drawMarkers(); openManual(c); };
+  renderOdooBlock(c);
+}
+
+function noteLine(n){
+  const when = n.date ? new Date(n.date.replace(" ","T")+"Z").toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "";
+  return `<div class="onote" style="margin-top:6px"><span class="m">${esc(when)}${n.auteur?" · "+esc(n.auteur):""}${n.activite?" · "+esc(n.activite):""}${n.source==="Opportunité"?" · opportunité":""}</span>${esc(n.texte)}</div>`;
+}
+/** Garde les 60 fiches Odoo les plus récentes pour la consultation hors-ligne */
+function pruneFiches(){
+  const ks=Object.keys(localStorage).filter(k=>k.startsWith("odf:"));
+  if(ks.length<=60) return;
+  ks.map(k=>{ let at=0; try{ at=JSON.parse(localStorage.getItem(k)).at; }catch(e){} return [k,at]; }).sort((a,b)=>a[1]-b[1]).slice(0,ks.length-60).forEach(([k])=>localStorage.removeItem(k));
+}
+
 /* ---------- Navigation & évènements ---------- */
 function setTab(t){
   document.querySelectorAll("#tabbar button").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===t));
@@ -1214,6 +1610,7 @@ $("#btn-refresh").onclick=()=>search();
 $("#btn-more").onclick=()=>search(true);
 $("#btn-locate").onclick=()=>{ const had=!!anchor; clearAnchor(); if(pos){ map.setView([pos.lat,pos.lng], zoomFor(settings.radius)); if(had) search(); } else toast("Position GPS en attente…"); };
 $("#btn-list").onclick=openNearbyList;
+$("#btn-legend").onclick=openLegend;
 $("#btn-search").onclick=()=>openSearch();
 $("#visit-q").oninput=renderVisits;
 $("#set-employers").onchange=e=>{ settings.employers=e.target.checked; saveSettings(); drawMarkers(); };
@@ -1236,6 +1633,7 @@ window.addEventListener("offline",()=>toast("Hors ligne : les visites restent en
 (async()=>{
   initMap(); renderRadius(); renderSector();
   await loadVisits(); refreshAll();
+  if(!odooAuth) showLogin(); else { odooRefreshStatus(); odooCheckSession(); }
   startGeoloc();
   try{ navigator.storage?.persist?.(); }catch(e){}
   if("serviceWorker" in navigator && location.protocol==="https:") navigator.serviceWorker.register("sw.js").catch(()=>{});

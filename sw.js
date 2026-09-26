@@ -1,5 +1,5 @@
 /* Service worker — fonctionnement hors-ligne de l'application */
-const SHELL = "shell-v1.4.0";
+const SHELL = "shell-v2.1.0";
 const TILES = "tiles-v1";
 const ASSETS = ["./","index.html","manifest.webmanifest","icon-180.png","icon-192.png","icon-512.png",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css",
@@ -16,6 +16,8 @@ self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
   // Les API (entreprises, adresses) ne sont jamais mises en cache : données toujours fraîches
   if (url.hostname.includes("api.gouv.fr") || url.hostname.includes("geopf.fr")) return;
+  // V2 : le relais Odoo et Pappers ne passent jamais par le cache
+  if (url.hostname.endsWith("workers.dev") || url.hostname.includes("pappers.fr")) return;
   // Tuiles de carte : cache d'abord, réseau sinon (consultation hors-ligne des zones déjà vues)
   if (url.hostname.endsWith("tile.openstreetmap.org")) {
     e.respondWith(caches.open(TILES).then(async c => {

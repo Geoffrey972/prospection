@@ -355,6 +355,8 @@ details.equip[open]{padding-bottom:14px}
     <h2>Données</h2>
     <div class="card stack">
       <div class="co-sub tabular" id="data-stats"></div>
+      <div class="warn" id="outbox-info" hidden></div>
+      <button class="btn ghost block" id="btn-share-old">Partager mes anciennes visites avec l'équipe</button>
       <button class="btn block" id="btn-csv">Exporter les visites (CSV Excel)</button>
       <button class="btn ghost block" id="btn-backup">Sauvegarder (fichier JSON)</button>
       <label class="btn ghost block" for="restore-file">Restaurer une sauvegarde</label>
@@ -411,7 +413,7 @@ details.equip[open]{padding-bottom:14px}
    - Carte : Leaflet + OpenStreetMap
    - Stockage : IndexedDB sur l'appareil (aucun serveur)
    ===================================================================== */
-const VERSION = "2.1.0";
+const VERSION = "2.2.0";
 /* V2 : relais TRIMARG (Cloudflare Worker) entre l'app et Odoo. Aucun secret ici. */
 const RELAY = "https://prospection.trimarg-prospection.workers.dev";
 const IS_ANDROID = /android/i.test(navigator.userAgent);
@@ -503,7 +505,9 @@ let visits = [];
 async function loadVisits(){ try{ visits = await DB.all(); }catch(e){ visits=[]; toast("Stockage local indisponible"); } visits.sort((a,b)=>b.date.localeCompare(a.date)); }
 const keyOf = c => c.siret || c.key;
 function visitsFor(key){ return visits.filter(v=>v.key===key).sort((a,b)=>b.date.localeCompare(a.date)); }
-function lastVisitMap(){ const m=new Map(); for(const v of visits){ const cur=m.get(v.key); if(!cur||v.date>cur.date) m.set(v.key,v); } return m; }
+function lastVisitMap(){ const m=new Map(); for(const v of visits){ const cur=m.get(v.key); if(!cur||v.date>cur.date) m.set(v.key,v); }
+  if(typeof sharedLast!=="undefined") for(const [k,v] of sharedLast){ const cur=m.get(k); if(!cur||String(v.date)>String(cur.date)) m.set(k,v); }
+  return m; }
 
 /* ---------- API Recherche d'entreprises ---------- */
 async function apiGet(path, params){
@@ -543,6 +547,7 @@ function normalize(ul, et){
     forme: ul.nature_juridique || "", categorie: ul.categorie_entreprise || "",
     creation: ul.date_creation || "", siege: !!et.est_siege, siegeAddress: ul.siege?.adresse || "",
     dirigeants: dirigeantsOf(ul), finance: lastFinance(ul),
+    holdings: (ul.dirigeants||[]).filter(d=>d.type_dirigeant==="personne morale" && /^\d{9}$/.test(d.siren||"")).map(d=>d.siren),
     open: (et.etat_administratif||"A")==="A", diffusible: ul.statut_diffusion!=="P" && !/NON-DIFFUSIBLE/i.test(ul.nom_complet||"")
   };
 }
@@ -612,6 +617,7 @@ async function search(more=false){
       if(i<pagesToLoad-1) await sleep(180);
     }
     try{ localStorage.setItem("lastSearch", JSON.stringify({q:lastQuery, items:[...companies.values()]})); }catch(e){}
+    sharedRefresh(true);
   }catch(e){ toast("Recherche impossible : "+e.message); }
   finally{ btn.classList.remove("spin"); prog.style.width="0"; setTimeout(()=>prog.style.width="0",300); }
 }
@@ -639,7 +645,11 @@ function markerIcon(cat, visited, clock){
   return iconCache[k] = L.divIcon({className:"", html, iconSize:[30,30], iconAnchor:[15,15]});
 }
 /** Équipement connu (dernière visite qui en porte un) */
-function equipOf(key){ return visitsFor(key).find(x=>x.equip)?.equip || null; }
+function equipOf(key){
+  const sh = sharedEquip.get(key) || (/^\d{14}$/.test(key) && sharedEquip.get(key.slice(0,9)));
+  if(sh) return sh.equip;
+  if(String(key).startsWith("manual_") && odooLinks[key]){ const l=odooLinks[key]; const x=(l.siren&&sharedEquip.get(l.siren))||sharedEquip.get("p"+l.id); if(x) return x.equip; }
+  return visitsFor(key).find(x=>x.equip)?.equip || null; }
 function hasEquip(key){ const e=equipOf(key); return !!e && Object.values(e).some(g=>Object.values(g||{}).some(v=>String(v||"").trim())); }
 /** Un contrat (copieur, GED, compta) se termine dans 6 mois ou moins (ou est échu) */
 function contractSoon(key){ const e=equipOf(key); if(!e) return false; return ["copieur","ged","compta"].some(g=>{ const m=monthsLeft(e[g]?.fin); return m!=null && m<=6; }); }
@@ -658,7 +668,7 @@ function drawMarkers(){
   const last = lastVisitMap();
   const shown = [...companies.values()].filter(passesFilters);
   // Entreprises visitées manuellement (hors SIRENE) : on les affiche aussi
-  for(const v of last.values()){ if(v.manual && v.lat) shown.push({key:v.key, name:v.name, address:v.address, lat:v.lat, lng:v.lng, manual:true, siret:v.siret||""}); }
+  for(const v of last.values()){ if((v.manual || String(v.key).startsWith("manual_")) && v.lat) shown.push({key:v.key, name:v.name, address:v.address||"", lat:v.lat, lng:v.lng, manual:true, siret:v.siret||""}); }
   const seen = new Set();
   for(const c of shown){
     const k = keyOf(c); if(seen.has(k)) continue; seen.add(k);
@@ -798,41 +808,6 @@ function companyBlock(c){
     ${!c.siege&&c.siegeAddress?`<dt>Siège</dt><dd>${esc(c.siegeAddress)}</dd>`:""}
   </dl>`;
 }
-function openCompany(c){
-  const k = keyOf(c); const hist = visitsFor(k); const lv = hist[0];
-  const d = (anchor||pos) ? distance(anchor||pos,c) : null;
-  const q = encodeURIComponent(c.name+" "+c.address);
-  openSheet(`
-    <div class="chips" style="margin-top:6px">${c.categorie?`<span class="tag">${esc(CATEGORIES[c.categorie]||c.categorie)}</span>`:""}${sectionOf(c.naf)?`<span class="tag">${esc(SECTIONS[sectionOf(c.naf)])}</span>`:""}${d!=null?`<span class="tag tabular">à ${fmtDist(d)}${anchor?" de l'adresse":""}</span>`:""}</div>
-    <div class="co-name">${esc(c.name)}</div>
-    ${c.legalName&&c.legalName!==c.name?`<div class="co-sub">${esc(c.legalName)}</div>`:""}
-    <div class="co-sub">${esc(c.address)}</div>
-    <div style="height:12px"></div>
-    ${lv?`<button class="card" id="co-last" style="width:100%;text-align:left;display:flex;align-items:center;gap:10px;border:0;margin-bottom:12px"><span class="st ${lv.status}">${esc(STATUSES[lv.status].label)}</span><span style="flex:1;min-width:0"><span class="co-sub">Dernière visite le ${fmtDate(lv.date)}${hist.length>1?` · ${hist.length} visites`:""}</span></span><span aria-hidden="true">›</span></button>`:""}
-    <button class="btn block" id="co-visit">Enregistrer une visite</button>
-    <div id="co-odoo"></div>
-    <h2>Données SIRENE</h2>
-    <div class="card">${companyBlock(c)}</div>
-    ${c.siren?`<button class="btn ghost block" id="co-carto" style="margin-top:12px">Cartographie gratuite (données publiques)</button>`:""}
-    ${c.siren&&settings.pappersToken?`<div class="pp-box"><div class="pp-head">Pappers</div><div class="row">
-      <button class="btn sm pp" id="co-pp-fiche">Fiche complète<small>${pCache("fiche:"+c.siren)?"déjà chargée · gratuit":"1 jeton"}</small></button>
-      <button class="btn sm pp" id="co-pp-carto">Cartographie<small>${pCache("carto:"+c.siren)?"déjà chargée · gratuit":"3 jetons"}</small></button></div></div>`:""}
-    <div class="row links" style="margin-top:12px">
-      <a class="btn ghost sm" href="${IS_ANDROID?`https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`:`https://maps.apple.com/?daddr=${c.lat},${c.lng}`}" target="_blank" rel="noopener">Itinéraire</a>
-      <a class="btn ghost sm" href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank" rel="noopener">Téléphone / avis</a>
-      <a class="btn ghost sm" href="https://www.pappers.fr/entreprise/${esc(c.siren)}" target="_blank" rel="noopener">Pappers</a>
-      <a class="btn ghost sm" href="https://annuaire-entreprises.data.gouv.fr/entreprise/${esc(c.siren)}" target="_blank" rel="noopener">Annuaire officiel</a>
-    </div>`);
-  $("#co-visit").onclick=()=>{ closeSheet(); openVisitForm(c); };
-  if(lv) $("#co-last").onclick=()=>{ closeSheet(); openHistory(k, c); };
-  if(c.siren) $("#co-carto").onclick=()=>{ closeSheet(); openCarto(c); };
-  if(c.siren && settings.pappersToken){
-    $("#co-pp-fiche").onclick=()=>{ closeSheet(); openPappersFiche(c); };
-    $("#co-pp-carto").onclick=()=>{ closeSheet(); openPappersCarto(c); };
-  }
-  renderOdooBlock(c);
-}
-
 /* ---------- Cartographie (façon Pappers) ----------
    Entreprise → ses dirigeants → les autres entreprises qu'ils dirigent.
    Les mandats d'une personne sont recherchés par nom + 1er prénom + mois de naissance
@@ -1133,13 +1108,15 @@ function openVisitForm(c, existing){
     id:uid(), key:c.key||c.siret, siret:c.siret||"", siren:c.siren||"", name:c.name||"", address:c.address||"", lat:c.lat, lng:c.lng,
     naf:c.naf||"", nafLabel:nafLabel(c.naf), forme:formeLabel(c.forme), effectif:EFFECTIFS[c.effectifUl]||"", dirigeant:c.dirigeants?.[0]?`${c.dirigeants[0].who} (${c.dirigeants[0].role})`:"",
     manual:!!c.manual, date:new Date().toISOString(), status:"", contactName:"", contactRole:"", contactPhone:"", contactEmail:"", solutions:[], notes:"", callbackDate:"",
-    equip: JSON.parse(JSON.stringify(visitsFor(c.key||c.siret).find(x=>x.equip)?.equip || {}))  // reprise de l'équipement connu
+    equip: JSON.parse(JSON.stringify(equipOfC(c) || {}))  // reprise de l'équipement connu (partagé, sinon téléphone)
   };
   v.equip = normEquip(v.equip);
+  const equipBefore = JSON.parse(JSON.stringify(v.equip));
   const manual = v.manual;
   openModal({title: existing?"Modifier la visite":"Nouvelle visite", left:"Annuler", right:"Enregistrer", onRight:()=>save(), html:`
     <div class="stack">
       ${manual?`<label class="f">Nom de l'entreprise *<input id="v-name" value="${esc(v.name)}" autocomplete="organization"></label>
+      ${odooAuth?`<div class="odbox" id="v-odoo" style="margin-top:0"><div class="hd"><span class="ttl">Fiche Odoo</span><span id="v-od-state" class="co-sub">non rattachée</span></div><div id="v-od-res" class="co-sub">Tapez le nom : les fiches Odoo correspondantes s'affichent ici.</div></div>`:""}
       <label class="f">Adresse<input id="v-addr" value="${esc(v.address)}"></label>`:`<div><div class="co-name" style="font-size:18px;margin:0">${esc(v.name)}</div><div class="co-sub">${esc(v.address)}</div></div>`}
       <div><div class="f" style="font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:6px">Statut *</div>
         <div class="stchips" id="v-status">${STATUS_ORDER.map(s=>`<button type="button" data-s="${s}" aria-pressed="${v.status===s}"><i></i>${STATUSES[s].label}</button>`).join("")}</div>
@@ -1153,6 +1130,7 @@ function openVisitForm(c, existing){
       <label class="f">E-mail<input id="v-cemail" type="email" value="${esc(v.contactEmail)}" autocomplete="email" autocapitalize="off"><span class="err" id="v-email-err" hidden>Adresse e-mail invalide</span></label>
       <label class="f">Notes<textarea id="v-notes" placeholder="Besoin, outils actuels, prochaine étape… (dictée vocale : micro du clavier)">${esc(v.notes)}</textarea></label>
       ${equipForm(v.equip)}
+      ${odooAuth&&!existing?`<div><button type="button" class="btn ghost sm" id="v-grp-btn">Groupe : renseigner</button><div id="v-grp"></div></div>`:""}
       <label class="f">SIRET<input id="v-siret" inputmode="numeric" value="${esc(v.siret)}" placeholder="14 chiffres"></label>
       ${manual?`<button type="button" class="btn ghost sm" id="v-lookup">Compléter depuis le SIRET / SIREN</button>`:""}
       <button class="btn block" id="v-save">Enregistrer la visite</button>
@@ -1161,6 +1139,33 @@ function openVisitForm(c, existing){
   $("#v-sol").onclick=e=>{ const b=e.target.closest("button"); if(!b) return; const on=b.getAttribute("aria-pressed")!=="true"; b.setAttribute("aria-pressed",on); };
   $("#v-save").onclick=()=>save();
   bindEquipForm();
+  // Saisie manuelle : recherche Odoo au fil de la frappe, rattachement en un tap
+  let odLink = manual ? (odooLinks[v.key]||null) : null;
+  function drawOdLink(){
+    const st=$("#v-od-state"), res=$("#v-od-res"); if(!st) return;
+    if(odLink){ st.innerHTML=`<span class="od ${esc((odooCache.map[odLink.siren||("id:"+odLink.id)]||{}).status||"connu")}">Rattachée</span>`;
+      res.innerHTML=`<div style="font-size:14px"><b>${esc(odLink.name)}</b>${odLink.siren?` <span class="co-sub">· SIREN ${esc(odLink.siren)}</span>`:""}</div><button type="button" class="linkbtn" id="v-od-un">Changer de fiche</button>`;
+      $("#v-od-un").onclick=()=>{ odLink=null; drawOdLink(); odSearch(); }; }
+    else st.textContent="non rattachée";
+  }
+  let odT=null, odSeq=0;
+  async function odSearch(){
+    const res=$("#v-od-res"); if(!res || odLink) return;
+    const q=$("#v-name").value.trim(); if(q.length<3){ res.textContent="Tapez le nom : les fiches Odoo correspondantes s'affichent ici."; return; }
+    const my=++odSeq; res.textContent="Recherche dans Odoo…";
+    try{
+      const j=await relay("/odoo/search",{method:"POST",body:{q, dept:deptOf({address:$("#v-addr").value})}}); if(my!==odSeq) return;
+      if(!j.results.length){ res.innerHTML=`Aucune fiche Odoo trouvée : la visite sera enregistrée sans rattachement.`; return; }
+      res.innerHTML=j.results.slice(0,6).map((r,i)=>`<div class="opp" style="border-color:var(${CAT_VAR[r.status==="connu"?"prospect":r.status]});margin-top:6px"><b>${esc(r.name)}</b><div class="m">${esc([r.street,r.zip,r.city].filter(Boolean).join(" "))}${r.opps?" · "+r.opps+" opportunité"+(r.opps>1?"s":""):""}${r.status==="client"?" · client":""}</div><button type="button" class="btn sm" style="margin-top:4px" data-od="${i}">Rattacher</button></div>`).join("");
+      res.querySelectorAll("[data-od]").forEach(b=>b.onclick=()=>{ const r=j.results[+b.dataset.od];
+        odLink={id:r.id, name:r.name, siren:String(r.siret||"").replace(/\D/g,"").slice(0,9)};
+        if(!$("#v-addr").value.trim()) $("#v-addr").value=[r.street,r.zip,r.city].filter(Boolean).join(" ");
+        if(!$("#v-siret").value.trim() && r.siret) $("#v-siret").value=String(r.siret).replace(/\D/g,"");
+        drawOdLink(); toast("Rattachée : "+r.name); });
+    }catch(e){ if(my===odSeq) res.innerHTML=`<span class="err">${esc(e.message)}</span>`; }
+  }
+  const gb=$("#v-grp-btn"); if(gb) gb.onclick=()=>{ gb.hidden=true; groupPicker($("#v-grp"), c||v, ()=>{ $("#v-grp").innerHTML='<div class="co-sub">Groupe enregistré.</div>'; }); };
+  if(manual && odooAuth){ $("#v-name").addEventListener("input",()=>{ clearTimeout(odT); odT=setTimeout(odSearch,500); }); drawOdLink(); if(!odLink) odSearch(); }
   if(manual) $("#v-lookup").onclick=async()=>{
     const id=$("#v-siret").value.replace(/\D/g,""); if(!/^\d{9}(\d{5})?$/.test(id)){ toast("Saisissez 9 ou 14 chiffres"); return; }
     try{ const d=await apiGet("/search",{q:id,per_page:1,limite_matching_etablissements:5}); const ul=d.results?.[0]; if(!ul){ toast("Introuvable dans SIRENE"); return; }
@@ -1180,7 +1185,11 @@ function openVisitForm(c, existing){
     if(v.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.contactEmail)){ $("#v-email-err").hidden=false; $("#v-cemail").focus(); return; }
     v.updated=new Date().toISOString();
     try{ await DB.put(v); }catch(e){ toast("Échec de l'enregistrement"); return; }
+    if(manual){ if(odLink){ odooLinks[v.key]=odLink; } saveLinks(); }
     await loadVisits(); refreshAll(); closeModal(); toast(existing?"Visite modifiée":"Visite enregistrée");
+    if(manual && odLink) await odooRefreshStatus();
+    // Envoi au relais (journal partagé + Odoo) — nouvelle visite uniquement
+    if(!existing && odooAuth) queueVisit(v, manual?{...v, key:v.key, manual:true}:c, equipBefore);
   }
 }
 
@@ -1241,11 +1250,16 @@ function pendingCallbacks(){
   return [...last.values()].filter(v=>v.status==="callback" && v.callbackDate).sort((a,b)=>a.callbackDate.localeCompare(b.callbackDate));
 }
 function renderCalls(){
-  const list = pendingCallbacks(); const t=todayYMD();
-  const due = list.filter(v=>v.callbackDate<=t).length;
+  const t=todayYMD();
+  const local = pendingCallbacks().filter(v=>!v.sync?.steps?.rappel);   // rappels non envoyés dans Odoo
+  const od = odooRappels||[];
+  const due = od.filter(a=>a.echeance<=t).length + local.filter(v=>v.callbackDate<=t).length;
   const badge=$("#call-badge"); badge.hidden=!due; badge.textContent=due;
-  $("#call-list").innerHTML = list.length ? list.map(v=>`<button class="tile ${v.callbackDate<t?"overdue":""}" data-id="${v.id}"><span class="stripe" style="background:var(--st-callback)"></span><span style="min-width:0"><div class="t">${esc(v.name)}</div><div class="s">${esc(v.contactName||"Contact non renseigné")}${v.contactPhone?" · "+esc(v.contactPhone):""}</div></span><span class="d tabular">${v.callbackDate<t?"En retard<br>":v.callbackDate===t?"Aujourd'hui<br>":""}${esc(fmtDay(v.callbackDate))}</span></button>`).join("")
-    : `<div class="empty">Aucun rappel en attente.</div>`;
+  const odHtml = od.map(a=>`<a class="tile ${a.echeance<t?"overdue":""}" href="${esc(a.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><span class="stripe" style="background:var(--st-callback)"></span><span style="min-width:0"><div class="t">${esc(a.name)}</div><div class="s">${esc(a.resume||"Appeler")}${a.note?" · "+esc(a.note):""}</div></span><span class="d tabular">${a.echeance<t?"En retard<br>":a.echeance===t?"Aujourd'hui<br>":""}${esc(fmtDay(a.echeance))}</span></a>`).join("");
+  const locHtml = local.map(v=>`<button class="tile ${v.callbackDate<t?"overdue":""}" data-id="${v.id}"><span class="stripe" style="background:var(--st-callback)"></span><span style="min-width:0"><div class="t">${esc(v.name)}</div><div class="s">${esc(v.contactName||"Contact non renseigné")}${v.contactPhone?" · "+esc(v.contactPhone):""}</div></span><span class="d tabular">${v.callbackDate<t?"En retard<br>":v.callbackDate===t?"Aujourd'hui<br>":""}${esc(fmtDay(v.callbackDate))}</span></button>`).join("");
+  $("#call-list").innerHTML = (odooAuth?`<h2 style="margin-top:0">Dans Odoo (activités « Appeler »)</h2>${odHtml||'<div class="co-sub">Aucun rappel dans Odoo.</div>'}`:"")
+    + (local.length?`<h2>Sur ce téléphone</h2>${locHtml}`:"")
+    + (!odooAuth && !local.length?`<div class="empty">Aucun rappel en attente.</div>`:"");
   $("#call-list").querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>openVisitDetail(b.dataset.id));
 }
 function renderSettings(){
@@ -1330,7 +1344,7 @@ $("#lg-go").onclick = async ()=>{
     saveAuth(); try{ localStorage.setItem("odooLogin", login); }catch(err){}
     $("#lg-key").value="";
     if(!settings.name){ settings.name=j.name; saveSettings(); }
-    hideLogin(); toast("Connecté : "+j.name); renderSettings(); odooRefreshStatus();
+    hideLogin(); toast("Connecté : "+j.name); renderSettings(); odooRefreshStatus(); flushOutbox(); loadRappels(); sharedRefresh(true);
   }catch(err){
     e.hidden=false; e.textContent = navigator.onLine ? err.message : "Pas de réseau : la connexion à Odoo est impossible pour l'instant.";
     $("#lg-skip").hidden=false;   // secours si le relais ou le réseau sont indisponibles
@@ -1450,67 +1464,6 @@ function oppLine(o){
   return `<div class="opp"><b>${esc(o.name)}</b><div class="m">${esc(o.stage)}${o.user?" · "+esc(o.user):""}${o.marge!=null&&o.marge!==false?" · marge "+fmtEur(o.marge):""}</div>
     <div class="chips" style="margin-top:4px">${(o.tags&&o.tags.length?o.tags:["sans étiquette"]).map(t=>`<span class="tag">${esc(t)}</span>`).join("")}${o.standby?'<span class="tag">Stand-By</span>':""}</div></div>`;
 }
-async function renderOdooBlock(c){
-  const box=$("#co-odoo"); if(!box) return;
-  if(!odooAuth){ box.innerHTML=`<div class="odbox"><div class="hd"><span class="ttl">Odoo</span></div><div class="co-sub">Connectez-vous à Odoo (Réglages) pour voir si l'entreprise est cliente et ses opportunités.</div></div>`; return; }
-  const my=++odooSeq, key=statusKey(c), siren=/^\d{9}$/.test(key)?key:"";
-  if(!key){ renderAttach(c, box, "Non rattachée", c.manual?"Cette entreprise n'est pas dans la base publique. Si elle existe dans Odoo, rattachez-la pour voir ses opportunités.":"Aucune fiche Odoo ne porte ce SIREN."); return; }
-  let st = odooCache.map[key];
-  if(!siren && (!st || Date.now()-st.at>ODOO_TTL) && navigator.onLine){
-    try{ const id=+key.slice(3); const j=await relay("/odoo/status",{method:"POST",body:{ids:[id]}}); st=odooCache.map[key]={...(j.results?.[id]||{status:"connu",partners:[]}),at:Date.now()}; saveOdooCache(); drawMarkers(); }catch(e){}
-  }
-  // Statut inconnu ou périmé : on le demande pour cette seule entreprise
-  if(siren && (!st || Date.now()-st.at>ODOO_TTL) && navigator.onLine){
-    box.innerHTML=`<div class="odbox"><div class="hd"><span class="ttl">Odoo</span><span class="co-sub">Chargement…</span></div></div>`;
-    try{ const j=await relay("/odoo/lookup",{method:"POST",body:{sirens:[siren]}}); const r=j.results?.[siren]; st=odooCache.map[siren]= r?{...r,at:Date.now()}:{status:"inconnu",at:Date.now()}; saveOdooCache(); drawMarkers(); }
-    catch(e){ if(my!==odooSeq) return; box.innerHTML=`<div class="odbox"><div class="hd"><span class="ttl">Odoo</span></div><div class="err">${esc(e.message)}</div></div>`; return; }
-  }
-  if(my!==odooSeq) return;
-  if(!st){ box.innerHTML=`<div class="odbox"><div class="hd"><span class="ttl">Odoo</span></div><div class="co-sub">Hors ligne : statut Odoo non disponible.</div></div>`; return; }
-  if(st.status==="inconnu"){ renderAttach(c, box, "Non rattachée", "Aucune fiche Odoo ne porte ce SIREN. Elle existe peut-être dans Odoo sans SIREN : cherchez-la et rattachez-la."); return; }
-
-  const partners = st.partners||[];
-  let pIdx = 0;
-  const draw = (detail, err) => {
-    const p = partners[pIdx]||{};
-    const status = detail?.status || st.status;
-    const produits = detail?.produits || st.produits || [];
-    const opps = detail?.opportunites || st.opps || [];
-    const notes = detail?.notes || [];
-    const acts = detail?.activites || [];
-    const contacts = detail?.contacts || [];
-    const t = todayYMD();
-    box.innerHTML = `<div class="odbox">
-      <div class="hd"><span class="ttl">Odoo</span><span class="od ${status}">${esc(OD_LABEL[status]||status)}</span></div>
-      ${partners.length>1?`<div class="chips">${partners.map((x,i)=>`<button class="tag" data-p="${i}" style="border:0;${i===pIdx?"background:var(--accent);color:var(--accent-ink)":""}">${esc(x.name)}</button>`).join("")}</div><div class="co-sub">${partners.length} fiches Odoo partagent ce SIREN</div>`:""}
-      <div><b>${esc(p.name||"")}</b>${p.agence?` <span class="co-sub">· ${esc(p.agence)}</span>`:""}</div>
-      ${produits.length?`<div class="odsub">Produits acquis</div><div class="chips">${produits.map(x=>`<span class="tag" style="background:color-mix(in srgb,var(--od-client) 18%,var(--surface));color:var(--od-client)">${esc(x)}</span>`).join("")}</div>`:""}
-      ${opps.length?`<div class="odsub">Opportunités en cours (${opps.length})</div>${opps.map(oppLine).join("")}`:`<div class="co-sub">Aucune opportunité en cours.</div>`}
-      ${acts.length?`<div class="odsub">Activités prévues</div>${acts.map(a=>`<div class="opp" style="border-color:var(--st-callback)"><b>${esc(a.type)}</b>${a.resume?" — "+esc(a.resume):""}<div class="m">${a.echeance?`<span class="${a.echeance<t?"err":""}">${esc(fmtDay(a.echeance))}${a.echeance<t?" · en retard":""}</span>`:""}${a.pour?" · "+esc(a.pour):""}</div>${a.note?`<div class="m">${esc(a.note)}</div>`:""}</div>`).join("")}`:""}
-      ${contacts.length?`<div class="odsub">Contacts (${contacts.length})</div>${contacts.map(x=>`<div style="font-size:14px"><b>${esc(x.name)}</b>${x.function?` <span class="co-sub">· ${esc(x.function)}</span>`:""}<div class="row" style="gap:12px">${x.phone?`<a class="tabular" href="tel:${esc(String(x.phone).replace(/\s/g,""))}">${esc(x.phone)}</a>`:""}${x.mobile?`<a class="tabular" href="tel:${esc(String(x.mobile).replace(/\s/g,""))}">${esc(x.mobile)}</a>`:""}${x.email?`<a href="mailto:${esc(x.email)}">${esc(x.email)}</a>`:""}</div></div>`).join("")}`:""}
-      ${detail?.notesFiche?`<div class="odsub">Notes de la fiche</div><div class="onote">${esc(detail.notesFiche)}</div>`:""}
-      ${notes.length?`<div class="odsub">Notes & échanges (${notes.length})</div><div id="od-notes">${notes.slice(0,4).map(noteLine).join("")}</div>${notes.length>4?`<button class="linkbtn" id="od-more">Voir les ${notes.length} notes</button>`:""}`:""}
-      ${err?`<div class="err">${esc(err)}</div>`:(detail?"":`<div class="co-sub">Chargement des contacts et des notes…</div>`)}
-      ${p.url?`<a class="btn ghost sm" href="${esc(p.url)}" target="_blank" rel="noopener">Ouvrir dans Odoo</a>`:""}
-    </div>`;
-    box.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{ pIdx=+b.dataset.p; load(); });
-    const more=$("#od-more"); if(more) more.onclick=()=>{ $("#od-notes").innerHTML=notes.map(noteLine).join(""); more.remove(); };
-  };
-  const load = async ()=>{
-    const p=partners[pIdx]; if(!p) return draw(null);
-    const ck="odf:"+p.id;
-    let cached=null; try{ cached=JSON.parse(localStorage.getItem(ck)||"null"); }catch(e){}
-    draw(cached?.d||null);
-    if(!navigator.onLine){ if(!cached) draw(null,"Hors ligne : détails indisponibles."); return; }
-    try{
-      const d = await relay("/odoo/societe/"+p.id); if(my!==odooSeq) return;
-      try{ localStorage.setItem(ck, JSON.stringify({at:Date.now(), d})); pruneFiches(); }catch(e){}
-      draw(d);
-    }catch(e){ if(my===odooSeq) draw(cached?.d||null, "Détails Odoo indisponibles : "+e.message); }
-  };
-  load();
-}
-
 /* ---------- Rattachement à une fiche Odoo (recherche par nom) ----------
    - entreprise de la base publique : écrit son SIRET dans la fiche Odoo choisie (si le champ est vide)
    - saisie manuelle : mémorise le lien sur ce téléphone (et écrit le SIRET s'il a été saisi) */
@@ -1559,23 +1512,6 @@ async function attach(c, r, box){
   }catch(e){ toast("Rattachement impossible : "+e.message); }
 }
 
-/* Fiche d'une entreprise saisie à la main (absente de la base publique) */
-function openManual(c){
-  const hist = visitsFor(c.key); const lv = hist[0];
-  openSheet(`<div class="chips" style="margin-top:6px"><span class="tag">Saisie manuelle</span></div>
-    <div class="co-name">${esc(c.name)}</div><div class="co-sub">${esc(c.address||"")}</div>
-    <div style="height:12px"></div>
-    ${lv?`<button class="card" id="mn-last" style="width:100%;text-align:left;display:flex;align-items:center;gap:10px;border:0;margin-bottom:12px"><span class="st ${lv.status}">${esc(STATUSES[lv.status].label)}</span><span style="flex:1;min-width:0"><span class="co-sub">Dernière visite le ${fmtDate(lv.date)}${hist.length>1?` · ${hist.length} visites`:""}</span></span><span aria-hidden="true">›</span></button>`:""}
-    <button class="btn block" id="mn-visit">Enregistrer une visite</button>
-    <div id="co-odoo"></div>
-    <div class="row links" style="margin-top:12px"><a class="btn ghost sm" href="${IS_ANDROID?`https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`:`https://maps.apple.com/?daddr=${c.lat},${c.lng}`}" target="_blank" rel="noopener">Itinéraire</a>
-    ${odooLinks[c.key]?`<button class="btn ghost sm" id="mn-unlink">Défaire le rattachement Odoo</button>`:""}</div>`);
-  $("#mn-visit").onclick=()=>{ closeSheet(); openVisitForm(companyFromVisit({...lv, key:c.key, manual:true})); };
-  if(lv) $("#mn-last").onclick=()=>{ closeSheet(); openHistory(c.key); };
-  const un=$("#mn-unlink"); if(un) un.onclick=()=>{ delete odooLinks[c.key]; saveLinks(); drawMarkers(); openManual(c); };
-  renderOdooBlock(c);
-}
-
 function noteLine(n){
   const when = n.date ? new Date(n.date.replace(" ","T")+"Z").toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "";
   return `<div class="onote" style="margin-top:6px"><span class="m">${esc(when)}${n.auteur?" · "+esc(n.auteur):""}${n.activite?" · "+esc(n.activite):""}${n.source==="Opportunité"?" · opportunité":""}</span>${esc(n.texte)}</div>`;
@@ -1587,11 +1523,343 @@ function pruneFiches(){
   ks.map(k=>{ let at=0; try{ at=JSON.parse(localStorage.getItem(k)).at; }catch(e){} return [k,at]; }).sort((a,b)=>a[1]-b[1]).slice(0,ks.length-60).forEach(([k])=>localStorage.removeItem(k));
 }
 
+/* =====================================================================
+   V2.2 — Fiche entreprise à onglets, visites partagées, équipement,
+   contacts et groupes
+   ===================================================================== */
+
+/* ---------- Données partagées (journal du relais) ---------- */
+const sharedLast = new Map();      // clé → dernière visite (tous commerciaux)
+const sharedEquip = new Map();     // clé / SIREN / « p<id> » → équipement courant
+let sharedAt = 0, sharedCenter = null;
+async function sharedRefresh(force=false){
+  if(!odooAuth || !navigator.onLine) return;
+  const c = searchCenter || currentCenter(); if(!c) return;
+  if(!force && sharedCenter && Date.now()-sharedAt<5*60*1000 && distance(sharedCenter,c)<200) return;
+  try{
+    const r = Math.max(1000, (lastQuery?.radius||settings.radius)*1.3);
+    const j = await relay("/visites/near",{method:"POST",body:{lat:c.lat,lng:c.lng,radius:r}});
+    for(const v of j.visits||[]) sharedLast.set(v.key, {...v, shared:true, manual:String(v.key).startsWith("manual_")});
+    for(const e of j.equip||[]){ const o={equip:e.equip, author:e.author, at:e.at}; if(e.key) sharedEquip.set(e.key,o); if(e.siren) sharedEquip.set(e.siren,o); if(e.partner_id) sharedEquip.set("p"+e.partner_id,o); }
+    sharedAt = Date.now(); sharedCenter = c; drawMarkers();
+  }catch(e){ console.warn("Visites partagées :", e.message); }
+}
+
+/** Identité d'une entreprise pour le relais */
+function partnerIdOf(c){
+  if(c.manual && odooLinks[c.key]) return odooLinks[c.key].id;
+  const st = odooCache.map[statusKey(c)]; return st?.partners?.[F?.c===c ? (F.pIdx||0) : 0]?.id || st?.partners?.[0]?.id || null;
+}
+function identOf(c){
+  const s = sirenOf(c);
+  return {key:keyOf(c), siren:/^\d{9}$/.test(s)?s:"", partner_id:partnerIdOf(c), name:c.name||"", lat:c.lat, lng:c.lng};
+}
+/** Équipement courant : journal partagé d'abord, sinon visites du téléphone */
+function equipRecord(c){
+  const k=keyOf(c), s=sirenOf(c), pid=partnerIdOf(c);
+  return sharedEquip.get(k) || (s && sharedEquip.get(s)) || (pid && sharedEquip.get("p"+pid)) || null;
+}
+function equipOfC(c){ const r=equipRecord(c); if(r) return r.equip; return visitsFor(keyOf(c)).find(x=>x.equip)?.equip || null; }
+const equipAny = e => !!e && Object.values(e).some(g=>Object.values(g||{}).some(v=>String(v||"").trim()));
+/** Lignes lisibles de l'équipement (bloc des notes internes Odoo) */
+function equipLines(e){
+  return EQUIP.filter(g=>equipFilled(e,g.k)).map(g=>g.label+" — "+g.fields.filter(f=>e[g.k][f.k]).map(f=>{
+    const v=String(e[g.k][f.k]).replace(/\s*\n\s*/g," ; ");
+    return f.label+" : "+(f.type==="month"&&/^\d{4}-\d{2}/.test(v)?v.slice(5,7)+"/"+v.slice(0,4):v);
+  }).join(" · "));
+}
+
+/* ---------- Envoi des visites (file d'attente hors-ligne) ---------- */
+let outbox = [];
+try{ outbox = JSON.parse(localStorage.getItem("outbox")||"[]"); }catch(e){}
+function saveOutbox(){ try{ localStorage.setItem("outbox", JSON.stringify(outbox)); }catch(e){} renderOutbox(); }
+function renderOutbox(){ const el=$("#outbox-info"); if(el){ el.hidden=!outbox.length; el.textContent=outbox.length+" visite"+(outbox.length>1?"s":"")+" en attente d'envoi"; } }
+let flushing=false;
+async function flushOutbox(){
+  if(flushing || !odooAuth || !navigator.onLine || !outbox.length) return;
+  flushing=true;
+  try{
+    while(outbox.length){
+      const p = outbox[0];
+      let r;
+      try{ r = await relay("/visites/save",{method:"POST",body:p}); }
+      catch(e){ if(/Session expirée/.test(e.message) || !navigator.onLine) break; r={ok:false, erreurs:[e.message]}; }
+      outbox.shift(); saveOutbox();
+      const v = visits.find(x=>x.id===p.id);
+      if(v){ v.sync={at:new Date().toISOString(), steps:r.steps||{}, erreurs:r.erreurs||[], odoo:!!r.odoo}; try{ await DB.put(v); }catch(e){} }
+      if(r.erreurs?.length) toast("Visite enregistrée, mais Odoo : "+r.erreurs[0]);
+      else if(!p.noOdoo) toast(r.odoo ? "Visite envoyée dans Odoo" : "Visite partagée (entreprise non rattachée à Odoo)");
+      sharedLast.set(p.key, {key:p.key, siren:p.siren, name:p.name, lat:p.lat, lng:p.lng, author:odooAuth.name, date:p.date, status:p.status, shared:true, manual:String(p.key).startsWith("manual_")});
+      if(p.equipChanged){ const o={equip:p.equip, author:odooAuth.name, at:new Date().toISOString()}; sharedEquip.set(p.key,o); if(p.siren) sharedEquip.set(p.siren,o); if(p.partner_id) sharedEquip.set("p"+p.partner_id,o); }
+    }
+  }finally{ flushing=false; drawMarkers(); }
+}
+window.addEventListener("online", ()=>setTimeout(flushOutbox, 1500));
+
+/** Envoie une visite enregistrée sur le téléphone vers le relais (et Odoo) */
+function queueVisit(v, c, equipBefore, noOdoo=false){
+  const id = identOf(c||companyFromVisit(v));
+  const changed = noOdoo ? true : JSON.stringify(normEquip(v.equip||{})) !== JSON.stringify(normEquip(equipBefore||{}));
+  outbox.push({
+    id:v.id, key:v.key, siren:id.siren||String(v.siren||v.siret||"").slice(0,9), partner_id:id.partner_id, name:v.name, address:v.address,
+    lat:v.lat, lng:v.lng, date:v.date, status:v.status, solutions:v.solutions||[], notes:v.notes||"",
+    contact:{name:v.contactName, role:v.contactRole, phone:v.contactPhone, email:v.contactEmail},
+    callbackDate:v.callbackDate||"", equip:v.equip, equipChanged:changed && equipAny(v.equip), equipLines:equipLines(normEquip(v.equip||{})), noOdoo
+  });
+  saveOutbox(); flushOutbox();
+}
+
+/* ---------- Fiche entreprise à onglets ---------- */
+let F = null;   // fiche ouverte : {c, tab, st, detail, pIdx}
+const TABS = [["ent","Entreprise"],["vis","Visites"],["con","Contacts"],["equ","Équipement"],["grp","Groupe"]];
+function openCompany(c, tab="ent"){ openFiche(c, tab); }
+function openManual(c, tab="ent"){ openFiche({...c, manual:true}, tab); }
+function renderOdooBlock(c){ if(F && keyOf(F.c)===keyOf(c)){ F.detail=null; F.st=null; openFiche(F.c, F.tab); } }
+
+function openFiche(c, tab){
+  const same = F && keyOf(F.c)===keyOf(c);
+  F = {c, tab, st: same?F.st:null, detail: same?F.detail:null, pIdx: same?F.pIdx:0};
+  const k=keyOf(c), lv=lastVisitMap().get(k), hist=visitsFor(k);
+  const d=(anchor||pos)&&c.lat?distance(anchor||pos,c):null;
+  const cat=markerCat(c,lv);
+  openSheet(`
+    <div class="chips" style="margin-top:6px">${c.manual?'<span class="tag">Saisie manuelle</span>':""}${c.categorie?`<span class="tag">${esc(CATEGORIES[c.categorie]||c.categorie)}</span>`:""}${sectionOf(c.naf)?`<span class="tag">${esc(SECTIONS[sectionOf(c.naf)])}</span>`:""}${d!=null?`<span class="tag tabular">à ${fmtDist(d)}</span>`:""}${contractSoon(k)?'<span class="tag" style="color:#b45309">⏱ fin de contrat</span>':""}</div>
+    <div class="co-name"><i class="od-dot" style="background:var(${CAT_VAR[cat]});width:12px;height:12px"></i>${esc(c.name)}</div>
+    ${c.legalName&&c.legalName!==c.name?`<div class="co-sub">${esc(c.legalName)}</div>`:""}
+    <div class="co-sub">${esc(c.address||"")}</div>
+    <div id="fi-od" style="margin-top:6px"></div>
+    ${lv?`<div class="co-sub" style="margin-top:6px"><span class="st ${lv.status}" style="font-size:11.5px;padding:2px 8px">${esc(STATUSES[lv.status]?.label||lv.status)}</span> Dernier passage le ${fmtDate(lv.date)}${lv.author?" par "+esc(lv.author):""}</div>`:""}
+    <button class="btn block" id="fi-visit" style="margin-top:10px">Saisir une visite</button>
+    <div class="etabs" id="fi-tabs" style="margin-top:12px">${TABS.map(([t,l])=>`<button type="button" data-t="${t}" aria-selected="${t===tab}">${l}</button>`).join("")}</div>
+    <div id="fi-pane"></div>`);
+  $("#fi-visit").onclick=()=>{ closeSheet(); openVisitForm(c.manual?companyFromVisit({...(hist[0]||{}), ...c, key:k, manual:true}):c); };
+  $("#fi-tabs").onclick=e=>{ const b=e.target.closest("[data-t]"); if(!b) return; F.tab=b.dataset.t; $("#fi-tabs").querySelectorAll("button").forEach(x=>x.setAttribute("aria-selected",x===b)); drawPane(); };
+  loadOdooForFiche().then(()=>{ drawHeaderOdoo(); drawPane(); });
+  drawPane();
+}
+/** Statut Odoo de la fiche (cache, sinon relais) */
+async function loadOdooForFiche(){
+  const c=F.c; if(!odooAuth) return;
+  const key=statusKey(c); if(!key){ F.st={status:"inconnu"}; return; }
+  let st=odooCache.map[key];
+  if((!st || Date.now()-st.at>ODOO_TTL) && navigator.onLine){
+    try{
+      if(key.startsWith("id:")){ const id=+key.slice(3); const j=await relay("/odoo/status",{method:"POST",body:{ids:[id]}}); st=odooCache.map[key]={...(j.results?.[id]||{status:"connu",partners:[]}),at:Date.now()}; }
+      else { const j=await relay("/odoo/lookup",{method:"POST",body:{sirens:[key]}}); const r=j.results?.[key]; st=odooCache.map[key]=r?{...r,at:Date.now()}:{status:"inconnu",at:Date.now()}; }
+      saveOdooCache(); drawMarkers();
+    }catch(e){ F.err=e.message; }
+  }
+  F.st=st||null;
+}
+async function loadDetail(){
+  const p=F.st?.partners?.[F.pIdx||0]; if(!p) return null;
+  if(F.detail && F.detail.id===p.id) return F.detail;
+  const ck="odf:"+p.id; let cached=null; try{ cached=JSON.parse(localStorage.getItem(ck)||"null"); }catch(e){}
+  if(!navigator.onLine) return F.detail=cached?.d||null;
+  try{ const d=await relay("/odoo/societe/"+p.id); try{ localStorage.setItem(ck, JSON.stringify({at:Date.now(), d})); pruneFiches(); }catch(e){} return F.detail=d; }
+  catch(e){ return F.detail=cached?.d||null; }
+}
+function drawHeaderOdoo(){
+  const el=$("#fi-od"); if(!el||!F) return;
+  if(!odooAuth){ el.innerHTML=`<span class="co-sub">Non connecté à Odoo</span>`; return; }
+  const st=F.st; if(!st){ el.innerHTML=`<span class="co-sub">${navigator.onLine?"Odoo…":"Hors ligne"}</span>`; return; }
+  const s=st.status==="inconnu"?"inconnu":st.status;
+  el.innerHTML=`<span class="od ${s}">${esc(OD_LABEL[s]||s)}</span>${(st.produits||[]).length?` <span class="co-sub">· client ${esc(st.produits.join(", "))}</span>`:""}${(st.opps||[]).length?` <span class="co-sub">· ${st.opps.length} opportunité${st.opps.length>1?"s":""} en cours</span>`:""}`;
+}
+async function drawPane(){
+  const pane=$("#fi-pane"); if(!pane||!F) return;
+  const t=F.tab, c=F.c;
+  if(t==="ent") return paneEntreprise(pane, c);
+  if(t==="vis") return paneVisites(pane, c);
+  if(t==="con") return paneContacts(pane, c);
+  if(t==="equ") return paneEquipement(pane, c);
+  if(t==="grp") return paneGroupe(pane, c);
+}
+
+/* Onglet Entreprise : Odoo (statut, opportunités) + base publique */
+async function paneEntreprise(pane, c){
+  const q=encodeURIComponent((c.name||"")+" "+(c.address||""));
+  const iti = IS_ANDROID?`https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`:`https://maps.apple.com/?daddr=${c.lat},${c.lng}`;
+  pane.innerHTML = `<div id="fi-odoo"></div>
+    ${c.manual?"":`<h2>Données de la base publique</h2><div class="card">${companyBlock(c)}</div>
+    ${c.siren?`<button class="btn ghost block" id="co-carto" style="margin-top:12px">Cartographie des dirigeants</button>`:""}
+    ${c.siren&&settings.pappersToken?`<div class="pp-box"><div class="pp-head">Pappers</div><div class="row">
+      <button class="btn sm pp" id="co-pp-fiche">Fiche complète<small>${pCache("fiche:"+c.siren)?"déjà chargée · gratuit":"1 jeton"}</small></button>
+      <button class="btn sm pp" id="co-pp-carto">Cartographie<small>${pCache("carto:"+c.siren)?"déjà chargée · gratuit":"3 jetons"}</small></button></div></div>`:""}`}
+    <div class="row links" style="margin-top:12px">
+      ${c.lat?`<a class="btn ghost sm" href="${iti}" target="_blank" rel="noopener">Itinéraire</a>`:""}
+      <a class="btn ghost sm" href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank" rel="noopener">Téléphone / avis</a>
+      ${c.siren?`<a class="btn ghost sm" href="https://www.pappers.fr/entreprise/${esc(c.siren)}" target="_blank" rel="noopener">Pappers</a><a class="btn ghost sm" href="https://annuaire-entreprises.data.gouv.fr/entreprise/${esc(c.siren)}" target="_blank" rel="noopener">Annuaire officiel</a>`:""}
+      ${c.manual&&odooLinks[c.key]?`<button class="btn ghost sm" id="mn-unlink">Défaire le rattachement Odoo</button>`:""}
+    </div>`;
+  const cb=$("#co-carto"); if(cb) cb.onclick=()=>{ closeSheet(); openCarto(c); };
+  const pf=$("#co-pp-fiche"); if(pf) pf.onclick=()=>{ closeSheet(); openPappersFiche(c); };
+  const pc=$("#co-pp-carto"); if(pc) pc.onclick=()=>{ closeSheet(); openPappersCarto(c); };
+  const un=$("#mn-unlink"); if(un) un.onclick=()=>{ delete odooLinks[c.key]; saveLinks(); F.st=null; drawMarkers(); openFiche(c,"ent"); };
+  const box=$("#fi-odoo");
+  if(!odooAuth){ box.innerHTML=`<div class="odbox"><div class="co-sub">Connectez-vous à Odoo (Réglages) pour voir si l'entreprise est cliente et ses opportunités.</div></div>`; return; }
+  const st=F.st;
+  if(!st){ box.innerHTML=`<div class="odbox"><div class="co-sub">${F.err?esc(F.err):navigator.onLine?"Chargement d'Odoo…":"Hors ligne : statut Odoo indisponible."}</div></div>`; return; }
+  if(st.status==="inconnu"){ renderAttach(c, box, "Non rattachée", c.manual?"Cette entreprise n'est pas dans la base publique. Si elle existe dans Odoo, rattachez-la.":"Aucune fiche Odoo ne porte ce SIREN. Elle existe peut-être dans Odoo sans SIREN : cherchez-la et rattachez-la."); return; }
+  const partners=st.partners||[], p=partners[F.pIdx||0]||{};
+  const opps=st.opps||[];
+  box.innerHTML=`<div class="odbox">
+    ${partners.length>1?`<div class="chips">${partners.map((x,i)=>`<button class="tag" data-p="${i}" style="border:0;${i===(F.pIdx||0)?"background:var(--accent);color:var(--accent-ink)":""}">${esc(x.name)}</button>`).join("")}</div><div class="co-sub">${partners.length} fiches Odoo partagent ce SIREN</div>`:""}
+    <div class="hd"><span class="ttl">Odoo</span><a class="btn ghost sm" href="${esc(p.url||"#")}" target="_blank" rel="noopener">Ouvrir dans Odoo</a></div>
+    <div><b>${esc(p.name||"")}</b>${p.agence?` <span class="co-sub">· ${esc(p.agence)}</span>`:""}</div>
+    ${(st.produits||[]).length?`<div class="odsub">Produits acquis</div><div class="chips">${st.produits.map(x=>`<span class="tag" style="background:color-mix(in srgb,var(--od-client) 18%,var(--surface));color:var(--od-client)">${esc(x)}</span>`).join("")}</div>`:""}
+    <div id="fi-opps">${opps.length?`<div class="odsub">Opportunités en cours (${opps.length})</div>${opps.map(oppLine).join("")}`:`<div class="co-sub">Aucune opportunité en cours.</div>`}</div>
+  </div>`;
+  box.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{ F.pIdx=+b.dataset.p; F.detail=null; drawPane(); });
+  // Marges des opportunités (détail)
+  const d=await loadDetail(); if(!d || F?.tab!=="ent") return;
+  const el=$("#fi-opps"); if(el && d.opportunites?.length) el.innerHTML=`<div class="odsub">Opportunités en cours (${d.opportunites.length})</div>${d.opportunites.map(oppLine).join("")}`;
+}
+
+/* Onglet Visites : journal partagé + notes et activités Odoo */
+async function paneVisites(pane, c){
+  const k=keyOf(c), local=visitsFor(k);
+  pane.innerHTML=`<div class="co-sub">Chargement de l'historique…</div>`;
+  let shared=[];
+  if(odooAuth && navigator.onLine){ try{ const id=identOf(c); shared=(await relay("/visites/history",{method:"POST",body:id})).visits||[]; }catch(e){} }
+  const ids=new Set(shared.map(x=>x.id));
+  const rows=[...shared.map(x=>({...x, mine:false})), ...local.filter(v=>!ids.has(v.id)).map(v=>({id:v.id, author:settings.name||"Moi", date:v.date, status:v.status, solutions:v.solutions, contact:{name:v.contactName}, notes:v.notes, callback:v.callbackDate, pending:true}))].sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  const d = F.st?.partners?.length ? await loadDetail() : null;
+  if(F?.tab!=="vis") return;
+  const t=todayYMD();
+  pane.innerHTML=`
+    ${rows.length?`<div class="odsub" style="margin-top:4px">Passages terrain (${rows.length})</div>${rows.map(r=>`<div class="onote" style="margin-top:8px;border-color:var(--st-${esc(r.status)})"><span class="m"><span class="st ${esc(r.status)}" style="font-size:11px;padding:1px 7px">${esc(STATUSES[r.status]?.label||r.status)}</span> ${esc(fmtDate(r.date))} · ${esc(r.author||"")}${r.pending?" · sur ce téléphone":""}${r.callback?" · rappel "+esc(fmtDay(r.callback)):""}</span>${r.contact?.name?`<b>${esc(r.contact.name)}</b> — `:""}${(r.solutions||[]).length?esc(r.solutions.join(", "))+"<br>":""}${esc(r.notes||"")}</div>`).join("")}`:`<div class="co-sub">Aucun passage enregistré.</div>`}
+    ${d?.activites?.length?`<div class="odsub" style="margin-top:14px">Activités prévues dans Odoo</div>${d.activites.map(a=>`<div class="opp" style="border-color:var(--st-callback)"><b>${esc(a.type)}</b>${a.resume?" — "+esc(a.resume):""}<div class="m">${a.echeance?`<span class="${a.echeance<t?"err":""}">${esc(fmtDay(a.echeance))}${a.echeance<t?" · en retard":""}</span>`:""}${a.pour?" · "+esc(a.pour):""}</div></div>`).join("")}`:""}
+    ${d?.notesFiche?`<div class="odsub" style="margin-top:14px">Notes internes Odoo</div><div class="onote">${esc(d.notesFiche)}</div>`:""}
+    ${d?.notes?.length?`<div class="odsub" style="margin-top:14px">Notes & échanges Odoo (${d.notes.length})</div><div id="od-notes">${d.notes.slice(0,5).map(noteLine).join("")}</div>${d.notes.length>5?`<button class="linkbtn" id="od-more">Voir les ${d.notes.length} notes</button>`:""}`:""}
+    ${local.length?`<button class="btn ghost sm" id="fi-hist" style="margin-top:12px">Modifier mes visites sur ce téléphone</button>`:""}`;
+  const more=$("#od-more"); if(more) more.onclick=()=>{ $("#od-notes").innerHTML=d.notes.map(noteLine).join(""); more.remove(); };
+  const h=$("#fi-hist"); if(h) h.onclick=()=>{ closeSheet(); openHistory(k, c); };
+}
+
+/* Onglet Contacts : contacts Odoo + ajout */
+async function paneContacts(pane, c){
+  if(!odooAuth || !F.st?.partners?.length){ pane.innerHTML=`<div class="co-sub">Rattachez d'abord l'entreprise à une fiche Odoo (onglet Entreprise).</div>`; return; }
+  pane.innerHTML=`<div class="co-sub">Chargement…</div>`;
+  const d=await loadDetail(); if(F?.tab!=="con") return;
+  const list=d?.contacts||[];
+  pane.innerHTML=`${list.length?list.map(x=>`<div class="card" style="margin-top:8px"><b>${esc(x.name)}</b>${x.function?` <span class="co-sub">· ${esc(x.function)}</span>`:""}<div class="row" style="gap:12px;margin-top:4px">${x.phone?`<a class="tabular" href="tel:${esc(String(x.phone).replace(/\s/g,""))}">${esc(x.phone)}</a>`:""}${x.mobile?`<a class="tabular" href="tel:${esc(String(x.mobile).replace(/\s/g,""))}">${esc(x.mobile)}</a>`:""}${x.email?`<a href="mailto:${esc(x.email)}">${esc(x.email)}</a>`:""}</div></div>`).join(""):`<div class="co-sub">Aucun contact dans Odoo.</div>`}
+    <h2>Ajouter un contact</h2>
+    <div class="stack"><label class="f">Nom *<input id="ct-name" autocomplete="name"></label><label class="f">Fonction<input id="ct-role"></label>
+    <label class="f">Téléphone<input id="ct-phone" type="tel"></label><label class="f">E-mail<input id="ct-email" type="email" autocapitalize="off"></label>
+    <button class="btn block" id="ct-go">Ajouter dans Odoo</button></div>`;
+  $("#ct-go").onclick=async()=>{
+    const b={partner_id:partnerIdOf(c), name:$("#ct-name").value.trim(), role:$("#ct-role").value.trim(), phone:$("#ct-phone").value.trim(), email:$("#ct-email").value.trim()};
+    if(!b.name){ toast("Le nom est obligatoire"); return; }
+    try{ const r=await relay("/odoo/contact",{method:"POST",body:b}); toast(r.resultat==="créé"?"Contact créé dans Odoo":r.resultat==="complété"?"Contact existant complété":"Ce contact existe déjà"); F.detail=null; drawPane(); }
+    catch(e){ toast("Impossible : "+e.message); }
+  };
+}
+
+/* Onglet Équipement : consultation / modification (notes internes Odoo) */
+async function paneEquipement(pane, c){
+  let rec=equipRecord(c);
+  if(odooAuth && navigator.onLine && !rec){ try{ const j=await relay("/equipement/get",{method:"POST",body:identOf(c)}); if(j.equip){ rec=j; const k=keyOf(c); sharedEquip.set(k,{equip:j.equip,author:j.author,at:j.at}); } }catch(e){} }
+  if(F?.tab!=="equ") return;
+  const e=normEquip(rec?.equip || equipOfC(c) || {});
+  pane.innerHTML=`${rec?`<div class="co-sub">Mis à jour par ${esc(rec.author||"")} le ${esc(fmtDate(rec.at))}</div>`:""}
+    ${equipDetail(e) || `<div class="co-sub">Aucun équipement renseigné.</div>`}
+    <div style="height:10px"></div>${equipForm(e).replace('<details class="equip" id="v-equip"','<details class="equip" id="v-equip"')}
+    <button class="btn block" id="eq-save" style="margin-top:10px">Enregistrer l'équipement</button>
+    <div class="co-sub" style="margin-top:6px">${partnerIdOf(c)?"Enregistré dans le bloc « Équipement » des notes internes de la fiche Odoo (le reste des notes n'est pas modifié).":"Entreprise non rattachée à Odoo : l'équipement est partagé entre commerciaux, mais pas écrit dans Odoo."}</div>`;
+  bindEquipForm();
+  $("#eq-save").onclick=async()=>{
+    const ne=readEquipForm();
+    try{ await relay("/equipement/save",{method:"POST",body:{...identOf(c), equip:ne, lines:equipLines(normEquip(ne))}});
+      const o={equip:ne, author:odooAuth.name, at:new Date().toISOString()}; sharedEquip.set(keyOf(c),o); const s=sirenOf(c); if(s) sharedEquip.set(s,o);
+      toast("Équipement enregistré"); drawMarkers(); drawPane(); }
+    catch(err){ toast("Impossible : "+err.message); }
+  };
+}
+
+/* Onglet Groupe */
+async function paneGroupe(pane, c){
+  if(!odooAuth){ pane.innerHTML=`<div class="co-sub">Connectez-vous pour gérer les groupes.</div>`; return; }
+  if(!navigator.onLine){ pane.innerHTML=`<div class="co-sub">Hors ligne : groupes indisponibles.</div>`; return; }
+  pane.innerHTML=`<div class="co-sub">Chargement…</div>`;
+  let g; try{ g=await relay("/groupes/of",{method:"POST",body:identOf(c)}); }catch(e){ pane.innerHTML=`<div class="err">${esc(e.message)}</div>`; return; }
+  if(F?.tab!=="grp") return;
+  if(g.etat==="aucun"){ pane.innerHTML=`<div class="co-sub">Appartenance à un groupe non renseignée.</div><div id="gp"></div>`; groupPicker($("#gp"), c, ()=>drawPane()); return; }
+  if(g.etat==="independante"){ pane.innerHTML=`<div class="odbox"><div><b>Société indépendante</b></div><div class="co-sub">Renseigné par ${esc(g.par||"")} le ${esc(fmtDate(g.le))}</div><button class="btn ghost sm" id="gp-chg">Modifier</button></div><div id="gp"></div>`;
+    $("#gp-chg").onclick=()=>groupPicker($("#gp"), c, ()=>drawPane()); return; }
+  const m=g.membres||[];
+  pane.innerHTML=`<div class="odbox"><div class="hd"><span class="ttl">Groupe</span><button class="btn ghost sm" id="gp-chg">Changer</button></div>
+    <div style="font-size:17px"><b>${esc(g.groupe.name)}</b></div><div class="co-sub">${m.length} société${m.length>1?"s":""}${g.groupe.head?" · tête de groupe SIREN "+esc(g.groupe.head):""}</div></div>
+    ${m.map(x=>`<div class="opp" style="margin-top:10px;border-color:var(${CAT_VAR[x.status==="connu"||x.status==="inconnu"?"prospect":x.status]})">
+      <b>${esc(x.name)}</b>${x.courant?' <span class="tag">cette société</span>':""} <span class="od ${esc(x.status)}" style="font-size:11px;padding:1px 7px">${esc(OD_LABEL[x.status]||x.status)}</span>
+      ${x.produits.length?`<div class="m">Client : ${esc(x.produits.join(", "))}</div>`:""}
+      ${x.opps.map(o=>`<div class="m">En cours : ${esc(o.name)} · ${esc(o.stage)}${o.user?" · "+esc(o.user):""}${o.tags?.length?" · "+esc(o.tags.join(", ")):""}</div>`).join("")}
+      ${x.perdues.map(o=>`<div class="m" style="color:var(--st-refused)">Perdue : ${esc(o.name)}${o.user?" · "+esc(o.user):""} · ${esc(fmtDate(o.date))}</div>`).join("")}
+      ${x.url?`<a class="linkbtn" href="${esc(x.url)}" target="_blank" rel="noopener">Ouvrir dans Odoo</a>`:""}</div>`).join("")}
+    <div id="gp"></div>`;
+  $("#gp-chg").onclick=()=>groupPicker($("#gp"), c, ()=>drawPane());
+}
+
+/** Sélecteur de groupe (anti-doublon) — utilisé dans la fiche et le formulaire de visite */
+function groupPicker(box, c, done){
+  const heads=c.holdings||[];
+  box.innerHTML=`<div class="odbox" style="margin-top:10px">
+    <div class="row"><button type="button" class="btn ghost sm" id="gp-ind">Société indépendante</button><button type="button" class="btn ghost sm" id="gp-none">Non renseigné</button></div>
+    <label class="f">Groupe<input id="gp-q" placeholder="Tapez le nom du groupe…" autocomplete="off"></label>
+    <div id="gp-res"></div></div>`;
+  const setG = async (gid, label)=>{
+    try{ await relay("/groupes/set",{method:"POST",body:{...identOf(c), group_id:gid}}); toast(label); done&&done(); }
+    catch(e){ toast("Impossible : "+e.message); }
+  };
+  $("#gp-ind").onclick=()=>setG(0,"Société indépendante");
+  $("#gp-none").onclick=()=>setG(null,"Groupe non renseigné");
+  let tm=null, seq=0;
+  const search=async()=>{
+    const q=$("#gp-q").value.trim(), my=++seq;
+    let j; try{ j=await relay("/groupes/search",{method:"POST",body:{q, heads}}); }catch(e){ return; }
+    if(my!==seq) return;
+    const G=j.groupes||[];
+    const exact=G.some(g=>normTxt(g.name)===normTxt(q));
+    $("#gp-res").innerHTML = G.map((g,i)=>`<div class="opp" style="margin-top:6px"><b>${esc(g.name)}</b>${g.suggestion?' <span class="tag">suggéré (dirigeant commun)</span>':""}<div class="m">${g.n} société${g.n>1?"s":""}</div><button type="button" class="btn sm" data-g="${i}" style="margin-top:4px">Rattacher à ce groupe</button></div>`).join("")
+      + (q.length>=3 && !exact ? `<div style="margin-top:10px">${G.length?`<div class="co-sub">Vérifiez qu'aucun groupe ci-dessus n'est le bon avant d'en créer un.</div>`:""}
+        <label class="f" style="margin-top:6px">SIREN de la tête de groupe (facultatif)<input id="gp-head" inputmode="numeric" placeholder="9 chiffres, si une holding existe"></label>
+        <button type="button" class="btn block" id="gp-new" style="margin-top:6px">Créer le groupe « ${esc(q)} »</button></div>` : "");
+    $("#gp-res").querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{ const g=G[+b.dataset.g]; setG(g.id,"Rattachée au groupe "+g.name); });
+    const nb=$("#gp-new"); if(nb) nb.onclick=async()=>{
+      const head=($("#gp-head").value||"").replace(/\D/g,"");
+      if(head && head.length!==9){ toast("SIREN de 9 chiffres, ou laissez vide"); return; }
+      try{ const r=await relay("/groupes/create",{method:"POST",body:{name:q, head}});
+        if(!r.ok){ toast(r.message); if(r.existant) setG(r.existant.id,"Rattachée au groupe "+r.existant.name); return; }
+        setG(r.groupe.id,"Groupe créé : "+r.groupe.name); }
+      catch(e){ toast("Impossible : "+e.message); }
+    };
+  };
+  $("#gp-q").addEventListener("input",()=>{ clearTimeout(tm); tm=setTimeout(search,350); });
+  if(heads.length) search();
+}
+const normTxt = x => String(x||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9 ]+/g," ").replace(/\b(groupe|group|holding|sas|sarl|sa)\b/g," ").replace(/\s+/g," ").trim();
+
+/* ---------- Rappels : activités « Appeler » d'Odoo ---------- */
+let odooRappels = null;
+async function loadRappels(){
+  if(!odooAuth || !navigator.onLine) return;
+  try{ odooRappels=(await relay("/odoo/rappels")).rappels||[]; renderCalls(); }catch(e){}
+}
+
+/* ---------- Partage des anciennes visites du téléphone ---------- */
+async function shareOldVisits(){
+  const todo=visits.filter(v=>!v.sync && !outbox.some(o=>o.id===v.id));
+  if(!todo.length){ toast("Toutes vos visites sont déjà partagées"); return; }
+  if(!await confirmBox(`Partager ${todo.length} visite${todo.length>1?"s":""} de ce téléphone avec les autres commerciaux ? Rien n'est écrit dans Odoo.`,"Partager")) return;
+  for(const v of todo) queueVisit(v, companyFromVisit(v), v.equip, true);
+}
+
 /* ---------- Navigation & évènements ---------- */
 function setTab(t){
   document.querySelectorAll("#tabbar button").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===t));
   ["map","visits","calls","settings"].forEach(s=>$("#scr-"+s).hidden = s!==t);
   if(t==="map") setTimeout(()=>map.invalidateSize(),50);
+  if(t==="calls") loadRappels();
   closeSheet(); closeModal();
 }
 document.querySelectorAll("#tabbar button").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
@@ -1623,6 +1891,7 @@ $("#set-pappers").onchange=e=>{ settings.pappersToken=e.target.value.trim(); sav
 $("#btn-jetons").onclick=showJetons;
 $("#btn-pp-cache").onclick=()=>{ try{ Object.keys(localStorage).filter(k=>k.startsWith("pp:")).forEach(k=>localStorage.removeItem(k)); }catch(e){} toast("Cache Pappers vidé"); };
 $("#btn-csv").onclick=exportCSV;
+$("#btn-share-old").onclick=shareOldVisits;
 $("#btn-backup").onclick=exportBackup;
 $("#restore-file").onchange=e=>{ const f=e.target.files[0]; if(f) importBackup(f); e.target.value=""; };
 setTimeout(()=>{ const h=$("#hint"); if(h) h.hidden=true; }, 7000);
@@ -1633,7 +1902,8 @@ window.addEventListener("offline",()=>toast("Hors ligne : les visites restent en
 (async()=>{
   initMap(); renderRadius(); renderSector();
   await loadVisits(); refreshAll();
-  if(!odooAuth) showLogin(); else { odooRefreshStatus(); odooCheckSession(); }
+  if(!odooAuth) showLogin(); else { odooRefreshStatus(); odooCheckSession(); flushOutbox(); loadRappels(); sharedRefresh(true); }
+  renderOutbox();
   startGeoloc();
   try{ navigator.storage?.persist?.(); }catch(e){}
   if("serviceWorker" in navigator && location.protocol==="https:") navigator.serviceWorker.register("sw.js").catch(()=>{});

@@ -388,8 +388,11 @@ details.equip[open]{padding-bottom:14px}
     <img class="logo" src="icon-192.png" alt="">
     <h1 style="margin:0">Prospection Terrain</h1>
     <div class="co-sub">Connectez-vous avec votre compte Odoo TRIMARG.</div>
-    <label class="f">Identifiant Odoo<input id="lg-login" type="email" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="prenom.nom@trimarg.com"></label>
-    <label class="f">Clé API Odoo<input id="lg-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Collez votre clé API"></label>
+    <form id="lg-form" class="stack" onsubmit="event.preventDefault()">
+    <label class="f">Identifiant Odoo<input id="lg-login" name="username" type="email" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="prenom.nom@trimarg.com"></label>
+    <label class="f">Clé API Odoo<input id="lg-key" name="password" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false" placeholder="Collez votre clé API"></label>
+    <div class="co-sub">Quand le téléphone propose d'enregistrer le mot de passe, acceptez : la clé sera proposée automatiquement (Face ID / empreinte) si vous devez vous reconnecter.</div>
+    </form>
     <div class="err" id="lg-err" hidden></div>
     <button class="btn block" id="lg-go">Se connecter</button>
     <details><summary>Où trouver ma clé API ?</summary>
@@ -413,7 +416,7 @@ details.equip[open]{padding-bottom:14px}
    - Carte : Leaflet + OpenStreetMap
    - Stockage : IndexedDB sur l'appareil (aucun serveur)
    ===================================================================== */
-const VERSION = "2.3.0";
+const VERSION = "2.4.0";
 /* V2 : relais TRIMARG (Cloudflare Worker) entre l'app et Odoo. Aucun secret ici. */
 const RELAY = "https://prospection.trimarg-prospection.workers.dev";
 const IS_ANDROID = /android/i.test(navigator.userAgent);
@@ -467,11 +470,21 @@ const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 function distance(a,b){ const R=6371e3,t=Math.PI/180; const dLa=(b.lat-a.lat)*t,dLo=(b.lng-a.lng)*t; const x=Math.sin(dLa/2)**2+Math.cos(a.lat*t)*Math.cos(b.lat*t)*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(x)); }
 let toastT; function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("on"),2600); }
-function confirmBox(text, okLabel="Supprimer"){
+function confirmBox(text, okLabel="Supprimer", danger=true){
   return new Promise(res=>{
     const w=document.createElement("div"); w.className="confirm";
-    w.innerHTML=`<div class="box"><div style="font-weight:650">${esc(text)}</div><button class="btn block" style="background:var(--st-refused);color:#fff" data-ok>${esc(okLabel)}</button><button class="btn ghost block" data-no>Annuler</button></div>`;
+    w.innerHTML=`<div class="box"><div style="font-weight:650">${esc(text)}</div><button class="btn block" ${danger?'style="background:var(--st-refused);color:#fff"':""} data-ok>${esc(okLabel)}</button><button class="btn ghost block" data-no>Annuler</button></div>`;
     w.addEventListener("click",e=>{ if(e.target.closest("[data-ok]")){w.remove();res(true);} else if(e.target.closest("[data-no]")||e.target===w){w.remove();res(false);} });
+    document.body.appendChild(w);
+  });
+}
+
+/** Choix multiple : options [{k,label,ghost}] → k (ou null si fermé) */
+function choiceBox(title, text, options){
+  return new Promise(res=>{
+    const w=document.createElement("div"); w.className="confirm";
+    w.innerHTML=`<div class="box"><div style="font-weight:700">${esc(title)}</div><div class="co-sub" style="margin-top:-6px">${esc(text)}</div>${options.map(o=>`<button class="btn ${o.ghost?"ghost ":""}block" data-k="${esc(o.k)}">${esc(o.label)}</button>`).join("")}</div>`;
+    w.addEventListener("click",e=>{ const b=e.target.closest("[data-k]"); if(b){ w.remove(); res(b.dataset.k); } else if(e.target===w){ w.remove(); res(null); } });
     document.body.appendChild(w);
   });
 }
@@ -1195,6 +1208,16 @@ function openVisitForm(c, existing){
     if(manual){ v.name=$("#v-name").value.trim(); v.address=$("#v-addr").value.trim(); if(!v.name){ toast("Le nom de l'entreprise est obligatoire"); $("#v-name").focus(); return; } }
     if(!v.status){ $("#v-status-err").hidden=false; $("#v-status").scrollIntoView({block:"center",behavior:"smooth"}); return; }
     if(v.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.contactEmail)){ $("#v-email-err").hidden=false; $("#v-cemail").focus(); return; }
+    // Entreprise absente d'Odoo et création non cochée : on demande quoi faire
+    let wantCreate = !existing && !odLink && !!$("#v-od-create")?.checked;
+    if(needOdoo && !odLink && !wantCreate){
+      const k = await choiceBox("Entreprise absente d'Odoo", "La visite"+(v.callbackDate?" et le rappel":"")+" ne peuvent pas être enregistrés dans Odoo tant que la fiche n'existe pas.", [
+        {k:"create", label:"Créer la fiche Odoo et y enregistrer la visite"},
+        {k:"app", label:"Enregistrer dans l'appli seulement", ghost:true},
+        {k:"back", label:"Revenir à la saisie", ghost:true}]);
+      if(!k || k==="back") return;
+      wantCreate = k==="create";
+    }
     v.updated=new Date().toISOString();
     try{ await DB.put(v); }catch(e){ toast("Échec de l'enregistrement"); return; }
     if(manual){ if(odLink){ odooLinks[v.key]=odLink; } saveLinks(); }
@@ -1202,9 +1225,9 @@ function openVisitForm(c, existing){
     if(manual && odLink) await odooRefreshStatus();
     // Envoi au relais (journal partagé + Odoo) — nouvelle visite uniquement
     let creer=null;
-    if(!existing && !odLink && $("#v-od-create")?.checked){
+    if(wantCreate){
       const a=parseAddr(v.address);
-      creer={name:(manual?v.name:(c.legalName||c.name)), street:a.street, zip:a.zip, city:a.city, siret:v.siret||c.siret||"", dept:a.zip.slice(0,3)};
+      creer={name:(manual?v.name:(c.legalName||c.name)), street:a.street, zip:a.zip, city:a.city, siret:v.siret||c.siret||"", dept:a.zip.slice(0,3)||deptOf(v)};
     }
     if(!existing && odooAuth) queueVisit(v, manual?{...v, key:v.key, manual:true}:c, equipBefore, false, creer);
   }
@@ -1368,6 +1391,7 @@ $("#lg-go").onclick = async ()=>{
   }finally{ b.disabled=false; b.textContent="Se connecter"; }
 };
 $("#lg-key").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#lg-go").click(); });
+$("#lg-form").addEventListener("submit",()=>$("#lg-go").click());
 $("#lg-skip").onclick = hideLogin;
 
 /** Vérifie en arrière-plan que la session est toujours valide (clé révoquée, etc.) */
@@ -1546,6 +1570,7 @@ function createForm(c, box){
       const k=soc.siren||sirenOf(c); if(k) delete odooCache.map[k];
       toast("Fiche créée dans Odoo : "+soc.name+(soc.agence?"":" (agence à renseigner dans Odoo)"));
       await odooRefreshStatus(); renderOdooBlock(c); drawMarkers();
+      offerCatchup(c, soc.id);
     }catch(e){ msg.innerHTML=`<div class="err">${esc(e.message)}</div>`; }
   };
   $("#cf-go").onclick=()=>send(false);
@@ -1570,6 +1595,7 @@ async function attach(c, r, box){
     const k = siren || ("id:"+r.id); delete odooCache.map[k]; saveOdooCache();
     toast("Rattachée à Odoo : "+r.name);
     await odooRefreshStatus(); renderOdooBlock(c); drawMarkers();
+    offerCatchup(c, r.id);
   }catch(e){ toast("Rattachement impossible : "+e.message); }
 }
 
@@ -1652,6 +1678,7 @@ async function flushOutbox(){
         if(String(p.key).startsWith("manual_")){ odooLinks[p.key]={id:r.partner_id, name:r.created?.name||p.name, siren:r.created?.siren||""}; saveLinks(); }
         const k=r.created?.siren||p.siren; if(k) delete odooCache.map[k];
         toast("Fiche créée dans Odoo : "+(r.created?.name||p.name)); odooRefreshStatus();
+        setTimeout(()=>offerCatchup(companyFromVisit(p), r.partner_id), 2800);
       }
       if(r.erreurs?.length) toast("Visite enregistrée, mais Odoo : "+r.erreurs[0]);
       else if(!p.noOdoo) toast(r.odoo ? "Visite envoyée dans Odoo" : "Visite partagée (entreprise non rattachée à Odoo)");
@@ -1663,8 +1690,8 @@ async function flushOutbox(){
 window.addEventListener("online", ()=>setTimeout(flushOutbox, 1500));
 
 /** Envoie une visite enregistrée sur le téléphone vers le relais (et Odoo) */
-function queueVisit(v, c, equipBefore, noOdoo=false, creer=null){
-  const id = identOf(c||companyFromVisit(v));
+function queueVisit(v, c, equipBefore, noOdoo=false, creer=null, pid=null){
+  const id = identOf(c||companyFromVisit(v)); if(pid) id.partner_id = pid;
   const changed = noOdoo ? true : JSON.stringify(normEquip(v.equip||{})) !== JSON.stringify(normEquip(equipBefore||{}));
   outbox.push({
     id:v.id, key:v.key, siren:id.siren||String(v.siren||v.siret||"").slice(0,9), partner_id:id.partner_id, name:v.name, address:v.address,
@@ -1674,6 +1701,28 @@ function queueVisit(v, c, equipBefore, noOdoo=false, creer=null){
     creer: id.partner_id ? null : creer
   });
   saveOutbox(); flushOutbox();
+}
+
+/* ---------- Rattrapage : visites du téléphone pas encore dans Odoo ---------- */
+function notInOdoo(c){
+  const k=keyOf(c);
+  return visits.filter(v=>(v.key===k || (c.siret && v.siret===c.siret)) && (!v.sync?.odoo || v.sync?.erreurs?.length) && !outbox.some(o=>o.id===v.id))
+    .sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+}
+/** Envoie dans Odoo les visites (activité Visite, rappel, contact, équipement) d'une entreprise enfin rattachée */
+async function sendCatchup(c, pid){
+  const todo=notInOdoo(c); if(!todo.length || !pid) return 0;
+  const t=todayYMD();
+  todo.forEach((v,i)=>{
+    const last = i===todo.length-1;   // l'équipement n'est écrit qu'une fois, avec la visite la plus récente
+    queueVisit({...v, callbackDate: v.callbackDate && v.callbackDate>=t ? v.callbackDate : ""}, companyFromVisit(v), last ? {} : v.equip, false, null, pid);
+  });
+  return todo.length;
+}
+async function offerCatchup(c, pid){
+  const n=notInOdoo(c).length; if(!n || !pid) return;
+  if(!await confirmBox(`${n} visite${n>1?"s":""} de cette entreprise ${n>1?"sont":"est"} sur votre téléphone mais pas dans Odoo. L'envoyer maintenant (activité Visite, rappel, contact, équipement) ?`, n>1?"Les envoyer dans Odoo":"L'envoyer dans Odoo", false)) return;
+  await sendCatchup(c, pid);
 }
 
 /* ---------- Fiche entreprise à onglets ---------- */
@@ -1790,18 +1839,21 @@ async function paneVisites(pane, c){
   let shared=[];
   if(odooAuth && navigator.onLine){ try{ const id=identOf(c); shared=(await relay("/visites/history",{method:"POST",body:id})).visits||[]; }catch(e){} }
   const ids=new Set(shared.map(x=>x.id));
+  const miss=new Set(odooAuth ? notInOdoo(c).map(v=>v.id) : []), pidNow=partnerIdOf(c);
   const rows=[...shared.map(x=>({...x, mine:false})), ...local.filter(v=>!ids.has(v.id)).map(v=>({id:v.id, author:settings.name||"Moi", date:v.date, status:v.status, solutions:v.solutions, contact:{name:v.contactName}, notes:v.notes, callback:v.callbackDate, pending:true}))].sort((a,b)=>String(b.date).localeCompare(String(a.date)));
   const d = F.st?.partners?.length ? await loadDetail() : null;
   if(F?.tab!=="vis") return;
   const t=todayYMD();
   pane.innerHTML=`
-    ${rows.length?`<div class="odsub" style="margin-top:4px">Passages terrain (${rows.length})</div>${rows.map(r=>`<div class="onote" style="margin-top:8px;border-color:var(--st-${esc(r.status)})"><span class="m"><span class="st ${esc(r.status)}" style="font-size:11px;padding:1px 7px">${esc(STATUSES[r.status]?.label||r.status)}</span> ${esc(fmtDate(r.date))} · ${esc(r.author||"")}${r.pending?" · sur ce téléphone":""}${r.callback?" · rappel "+esc(fmtDay(r.callback)):""}</span>${r.contact?.name?`<b>${esc(r.contact.name)}</b> — `:""}${(r.solutions||[]).length?esc(r.solutions.join(", "))+"<br>":""}${esc(r.notes||"")}</div>`).join("")}`:`<div class="co-sub">Aucun passage enregistré.</div>`}
+    ${miss.size?`<div class="warn" style="margin-bottom:10px"><b>${miss.size} visite${miss.size>1?"s":""} pas encore dans Odoo</b><div class="co-sub">${pidNow?"La fiche Odoo existe maintenant : vous pouvez l'y envoyer.":"Rattachez ou créez d'abord la fiche Odoo (onglet Entreprise)."}</div>${pidNow?`<button class="btn sm" id="fi-catch" style="margin-top:6px">Envoyer dans Odoo</button>`:""}</div>`:""}
+    ${rows.length?`<div class="odsub" style="margin-top:4px">Passages terrain (${rows.length})</div>${rows.map(r=>`<div class="onote" style="margin-top:8px;border-color:var(--st-${esc(r.status)})"><span class="m"><span class="st ${esc(r.status)}" style="font-size:11px;padding:1px 7px">${esc(STATUSES[r.status]?.label||r.status)}</span> ${esc(fmtDate(r.date))} · ${esc(r.author||"")}${r.pending?" · sur ce téléphone":""}${miss.has(r.id)?' · <span class="err">pas dans Odoo</span>':""}${r.callback?" · rappel "+esc(fmtDay(r.callback)):""}</span>${r.contact?.name?`<b>${esc(r.contact.name)}</b> — `:""}${(r.solutions||[]).length?esc(r.solutions.join(", "))+"<br>":""}${esc(r.notes||"")}</div>`).join("")}`:`<div class="co-sub">Aucun passage enregistré.</div>`}
     ${d?.activites?.length?`<div class="odsub" style="margin-top:14px">Activités prévues dans Odoo</div>${d.activites.map(a=>`<div class="opp" style="border-color:var(--st-callback)"><b>${esc(a.type)}</b>${a.resume?" — "+esc(a.resume):""}<div class="m">${a.echeance?`<span class="${a.echeance<t?"err":""}">${esc(fmtDay(a.echeance))}${a.echeance<t?" · en retard":""}</span>`:""}${a.pour?" · "+esc(a.pour):""}</div></div>`).join("")}`:""}
     ${d?.notesFiche?`<div class="odsub" style="margin-top:14px">Notes internes Odoo</div><div class="onote">${esc(d.notesFiche)}</div>`:""}
     ${d?.notes?.length?`<div class="odsub" style="margin-top:14px">Notes & échanges Odoo (${d.notes.length})</div><div id="od-notes">${d.notes.slice(0,5).map(noteLine).join("")}</div>${d.notes.length>5?`<button class="linkbtn" id="od-more">Voir les ${d.notes.length} notes</button>`:""}`:""}
     ${local.length?`<button class="btn ghost sm" id="fi-hist" style="margin-top:12px">Modifier mes visites sur ce téléphone</button>`:""}`;
   const more=$("#od-more"); if(more) more.onclick=()=>{ $("#od-notes").innerHTML=d.notes.map(noteLine).join(""); more.remove(); };
   const h=$("#fi-hist"); if(h) h.onclick=()=>{ closeSheet(); openHistory(k, c); };
+  const fc=$("#fi-catch"); if(fc) fc.onclick=async()=>{ fc.disabled=true; const n=await sendCatchup(c, pidNow); toast(n+" visite"+(n>1?"s":"")+" en cours d'envoi dans Odoo"); setTimeout(()=>{ if(F?.tab==="vis") drawPane(); }, 2500); };
 }
 
 /* Onglet Contacts : contacts Odoo + ajout */

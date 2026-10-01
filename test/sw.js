@@ -1,7 +1,7 @@
 /* Service worker — fonctionnement hors-ligne de l'application */
 // Prod et test sont sur le même site : chaque version ne gère que ses propres caches
 const ENV_PREFIX = self.registration && /\/test\/$/.test(self.registration.scope) ? "test-" : "";
-const SHELL = ENV_PREFIX + "shell-v2.7.0";
+const SHELL = ENV_PREFIX + "shell-v2.8.0";
 const TILES = "tiles-v1";
 const ASSETS = ["./","index.html","manifest.webmanifest","icon-180.png","icon-192.png","icon-512.png",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css",

@@ -192,6 +192,14 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 .tile .s{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile .d{font-size:12px;color:var(--muted);text-align:right}
 .tile.overdue .d{color:var(--st-refused);font-weight:700}
+.rp{display:flex;flex-direction:column;gap:10px;border-left:5px solid var(--st-callback)}
+.rp.overdue{border-left-color:var(--st-refused)}
+.rp-h{display:flex;justify-content:space-between;gap:8px;align-items:baseline}.rp-h .t{font-weight:700;font-size:16.5px}
+.rp-d{font-size:12.5px;color:var(--muted);white-space:nowrap;font-weight:600}.rp-d.late{color:var(--st-refused)}.rp-d.today{color:var(--st-callback)}
+.rp-c{font-size:15.5px}.rp-n{background:var(--surface2);border-radius:10px;padding:8px 10px;font-size:14px;white-space:pre-wrap;max-height:9.5em;overflow:auto}
+.rp-call{height:54px;font-size:17px}
+.rp-a{display:grid;grid-template-columns:1fr 1fr;gap:8px}.rp-a .btn{height:auto;min-height:50px;flex-direction:column;gap:1px;padding:6px 8px}.rp-a small{font-size:11.5px;font-weight:500;opacity:.8}
+.rp-a .danger-t{color:var(--st-refused)}
 .empty{text-align:center;color:var(--muted);padding:40px 16px}
 .search{position:relative;margin-bottom:12px}
 .search input{padding-left:36px}
@@ -422,7 +430,7 @@ details.equip[open]{padding-bottom:14px}
    - Carte : Leaflet + OpenStreetMap
    - Stockage : IndexedDB sur l'appareil (aucun serveur)
    ===================================================================== */
-const VERSION = "2.7.0";
+const VERSION = "2.8.0";
 /* Environnement : l'app servie dans un dossier /test/ parle au relais de test et garde ses propres données */
 const IS_TEST = /\/test\//.test(location.pathname);
 /** Stockage local : en test, toutes les clés sont préfixées (même site que la prod) */
@@ -1381,12 +1389,69 @@ function renderCalls(){
   const od = odooRappels||[];
   const due = od.filter(a=>a.echeance<=t).length + local.filter(v=>v.callbackDate<=t).length;
   const badge=$("#call-badge"); badge.hidden=!due; badge.textContent=due;
-  const odHtml = od.map(a=>`<a class="tile ${a.echeance<t?"overdue":""}" href="${esc(a.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><span class="stripe" style="background:var(--st-callback)"></span><span style="min-width:0"><div class="t">${esc(a.name)}</div><div class="s">${esc(a.resume||"Appeler")}${a.note?" · "+esc(a.note):""}</div></span><span class="d tabular">${a.echeance<t?"En retard<br>":a.echeance===t?"Aujourd'hui<br>":""}${esc(fmtDay(a.echeance))}</span></a>`).join("");
+  const odHtml = od.map((a,i)=>{ const ct=a.contact||{}, ph=ct.phone||ct.standard||"", vis=a.visite;
+    const note = vis?.notes || a.note || "";
+    return `<div class="rp card ${a.echeance<t?"overdue":""}">
+      <div class="rp-h"><div class="t">${esc(a.name)}</div><span class="rp-d ${a.echeance<t?"late":a.echeance===t?"today":""}">${a.echeance<t?"En retard · ":a.echeance===t?"Aujourd'hui · ":""}${esc(fmtDay(a.echeance))}</span></div>
+      <div class="rp-c">${ct.name?`<b>${esc(ct.name)}</b>`:`<span class="co-sub">Contact non renseigné</span>`}${ph?` · <span class="tabular">${esc(ph)}</span>`:""}${ct.phone&&ct.standard&&ct.standard!==ct.phone?`<div class="co-sub">Standard : <span class="tabular">${esc(ct.standard)}</span></div>`:""}</div>
+      ${note?`<div class="rp-n"><span class="co-sub">${vis?`Dernière visite ${esc(fmtDate(vis.date))}${vis.author?" · "+esc(vis.author):""}`:"Note du rappel"}</span><div>${esc(note)}</div></div>`:""}
+      ${ph?`<a class="btn block rp-call" href="tel:${esc(ph.replace(/[^\d+]/g,""))}">Appeler ${esc(ph)}</a>`:`<div class="co-sub">Aucun numéro dans Odoo.</div>`}
+      <div class="rp-a"><button class="btn ghost" data-ra="report" data-i="${i}">Ne répond pas<small>Reporter ${esc(nextWorkLabel())}</small></button>
+        <button class="btn ghost" data-ra="rdv" data-i="${i}">RDV pris</button>
+        <button class="btn ghost" data-ra="autre" data-i="${i}">Autre…</button>
+        <button class="btn ghost danger-t" data-ra="annuler" data-i="${i}">Annuler</button></div>
+    </div>`; }).join("");
   const locHtml = local.map(v=>`<button class="tile ${v.callbackDate<t?"overdue":""}" data-id="${v.id}"><span class="stripe" style="background:var(--st-callback)"></span><span style="min-width:0"><div class="t">${esc(v.name)}</div><div class="s">${esc(v.contactName||"Contact non renseigné")}${v.contactPhone?" · "+esc(v.contactPhone):""}</div></span><span class="d tabular">${v.callbackDate<t?"En retard<br>":v.callbackDate===t?"Aujourd'hui<br>":""}${esc(fmtDay(v.callbackDate))}</span></button>`).join("");
-  $("#call-list").innerHTML = (odooAuth?`<h2 style="margin-top:0">Dans Odoo (activités « Appeler »)</h2>${odHtml||'<div class="co-sub">Aucun rappel dans Odoo.</div>'}`:"")
+  $("#call-list").innerHTML = (odooAuth?`<h2 style="margin-top:0">À rappeler (Odoo)</h2>${odHtml||'<div class="co-sub">Aucun rappel dans Odoo.</div>'}`:"")
     + (local.length?`<h2>Sur ce téléphone</h2>${locHtml}`:"")
     + (!odooAuth && !local.length?`<div class="empty">Aucun rappel en attente.</div>`:"");
   $("#call-list").querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>openVisitDetail(b.dataset.id));
+  $("#call-list").querySelectorAll("[data-ra]").forEach(b=>b.onclick=()=>rappelAction(od[+b.dataset.i], b.dataset.ra));
+}
+/** Prochain jour ouvré (vendredi → lundi, samedi → lundi) */
+function nextWorkDay(){ const d=new Date(); d.setDate(d.getDate()+1); while(d.getDay()===0||d.getDay()===6) d.setDate(d.getDate()+1); return d; }
+function nextWorkLabel(){ const d=nextWorkDay(), t=new Date(); t.setDate(t.getDate()+1); return d.toDateString()===t.toDateString() ? "à demain" : "à "+d.toLocaleDateString("fr-FR",{weekday:"long"}); }
+const ymdOf = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+/** Actions sur un rappel Odoo : l'activité « Appeler » est marquée terminée avec le résultat */
+async function rappelAction(a, kind){
+  if(!navigator.onLine){ toast("Hors ligne : action impossible"); return; }
+  const send = async body => {
+    try{ const r=await relay("/odoo/rappel/action",{method:"POST",body:{id:a.id, action:kind, ...body}});
+      closeModal(); toast(kind==="report"?"Reporté au "+fmtDay(r.next):kind==="rdv"?"RDV créé dans l'agenda Odoo":kind==="annuler"?"Rappel annulé":"Enregistré"+(r.next?" · rappel le "+fmtDay(r.next):""));
+      odooRappels=(odooRappels||[]).filter(x=>x.id!==a.id); renderCalls(); loadRappels(); return true;
+    }catch(e){ toast("Odoo : "+e.message); return false; } };
+  if(kind==="report") return send({date: ymdOf(nextWorkDay())});
+  if(kind==="annuler"){ if(await confirmBox(`Annuler le rappel « ${a.name} » ? Il sera clos dans Odoo.`, "Oui, annuler le rappel")) send({}); return; }
+  const ct=a.contact||{};
+  if(kind==="rdv"){
+    openModal({title:"RDV pris", left:"Retour", right:"Valider", onRight:()=>go(), html:`<div class="stack">
+      <div><div class="co-name" style="font-size:18px;margin:0">${esc(a.name)}</div></div>
+      <div class="row" style="gap:8px"><label class="f" style="flex:1.4">Date du RDV *<input type="date" id="r-d" min="${todayYMD()}"></label><label class="f" style="flex:1">Heure *<input type="time" id="r-h" step="900"></label></div>
+      <label class="f">Durée<select id="r-dur"><option value="0.5">30 min</option><option value="1" selected>1 h</option><option value="1.5">1 h 30</option><option value="2">2 h</option></select></label>
+      <label class="f">Nom du contact *<input id="r-cn" value="${esc(ct.name||"")}" autocomplete="name"></label>
+      <label class="f">E-mail du contact *<input id="r-ce" type="email" value="${esc(ct.email||"")}" autocapitalize="off" autocomplete="email"></label>
+      <div class="co-sub">Le RDV est créé dans votre agenda Odoo avec le contact en participant, sans texte ; l'invitation part de votre Outlook. Le rappel est clos « RDV pris ».</div>
+      <div class="err" id="r-err" hidden></div>
+      <button class="btn block" id="r-go">Valider le RDV</button></div>`});
+    const go = async ()=>{ const d=$("#r-d").value, h=$("#r-h").value, n=$("#r-cn").value.trim(), em=$("#r-ce").value.trim(), er=$("#r-err");
+      const bad=m=>{ er.textContent=m; er.hidden=false; };
+      if(!d||!h) return bad("Date et heure du RDV obligatoires"); const dt=new Date(d+"T"+h); if(isNaN(dt)||dt<new Date()) return bad("Le RDV doit être dans le futur");
+      if(!n) return bad("Nom du contact obligatoire"); if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) return bad("E-mail du contact obligatoire (adresse valide)");
+      $("#r-go").disabled=true; if(!await send({rdv:{start:dt.toISOString(), duree:+$("#r-dur").value||1}, contact:{name:n, email:em, phone:ct.phone||""}})) $("#r-go").disabled=false; };
+    $("#r-go").onclick=go; return;
+  }
+  if(kind==="autre"){
+    openModal({title:"Autre", left:"Retour", right:"Valider", onRight:()=>go(), html:`<div class="stack">
+      <div><div class="co-name" style="font-size:18px;margin:0">${esc(a.name)}</div></div>
+      <label class="f">Commentaire *<textarea id="o-c" placeholder="Ex. rappeler après 14 h, voir avec le gérant… (dictée : micro du clavier)"></textarea></label>
+      <label class="f">Nouveau rappel le<input type="date" id="o-d" min="${todayYMD()}"></label>
+      <div class="co-sub">Le rappel actuel est clos dans Odoo avec votre commentaire. Si une date est choisie, un nouveau rappel est planifié.</div>
+      <div class="err" id="o-err" hidden></div>
+      <button class="btn block" id="o-go">Enregistrer</button></div>`});
+    const go = async ()=>{ const c=$("#o-c").value.trim(); if(!c){ $("#o-err").textContent="Commentaire obligatoire"; $("#o-err").hidden=false; return; }
+      $("#o-go").disabled=true; if(!await send({comment:c, date:$("#o-d").value||""})) $("#o-go").disabled=false; };
+    $("#o-go").onclick=go;
+  }
 }
 function renderSettings(){
   $("#set-employers").checked=settings.employers; $("#set-public").checked=settings.excludePublic; $("#set-ge").checked=settings.excludeGE;

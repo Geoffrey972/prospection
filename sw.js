@@ -1,5 +1,7 @@
 /* Service worker — fonctionnement hors-ligne de l'application */
-const SHELL = "shell-v2.4.0";
+// Prod et test sont sur le même site : chaque version ne gère que ses propres caches
+const ENV_PREFIX = self.registration && /\/test\/$/.test(self.registration.scope) ? "test-" : "";
+const SHELL = ENV_PREFIX + "shell-v2.8.0";
 const TILES = "tiles-v1";
 const ASSETS = ["./","index.html","manifest.webmanifest","icon-180.png","icon-192.png","icon-512.png",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css",
@@ -9,7 +11,7 @@ self.addEventListener("install", e => {
   e.waitUntil(caches.open(SHELL).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", e => {
-  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== SHELL && k !== TILES).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== SHELL && k !== TILES && k.startsWith(ENV_PREFIX + "shell-")).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
 self.addEventListener("fetch", e => {
   const url = new URL(e.request.url);

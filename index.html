@@ -288,6 +288,20 @@ details.equip[open]{padding-bottom:14px}
 #login details summary{cursor:pointer;font-weight:600;color:var(--accent)}
 #login ol{padding-left:20px;margin:8px 0 0}
 .linkbtn{border:0;background:none;color:var(--accent);font-weight:600;padding:6px 0;text-align:left}
+/* ============ 2.10 : zone, regroupement, cafés, idées ============ */
+.here{align-self:center;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:13.5px;padding:9px 16px;box-shadow:var(--shadow);display:flex;align-items:center;gap:6px}
+.here[hidden]{display:none}
+.clu{border-radius:50%;background:color-mix(in srgb,var(--accent) 88%,transparent);color:var(--accent-ink);border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;font:800 13px/1 system-ui,sans-serif;position:relative}
+.clu i{position:absolute;width:10px;height:10px;border-radius:50%;border:1.5px solid #fff}
+.clu i.c{background:var(--od-client);top:-4px;left:-4px} .clu i.o{background:var(--od-opp);top:-4px;right:-4px}
+.fsec{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
+.sol.sm button{padding:6px 11px;font-size:13px}
+.idea{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;background:var(--surface)}
+.idea .m{font-size:12px;color:var(--muted)}
+.idea .t{white-space:pre-wrap;font-size:14.5px;user-select:text;-webkit-user-select:text}
+.idea .r{border-left:3px solid var(--accent);padding-left:8px;font-size:13.5px;white-space:pre-wrap}
+.ist{font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 8px;background:var(--surface2);color:var(--muted)}
+.ist.nouvelle{background:var(--coral);color:#fff} .ist.retenue{background:var(--accent);color:var(--accent-ink)} .ist.livree{background:var(--od-client);color:#fff} .ist.ecartee{background:var(--od-hors);color:#fff}
 </style>
 </head>
 <body>
@@ -308,16 +322,18 @@ details.equip[open]{padding-bottom:14px}
       <div class="bar">
         <div class="pill" style="flex:1;min-width:0">
           <span class="count tabular" id="count">Localisation…</span>
-          <button class="more" id="btn-more" hidden>+25</button>
+          <button class="more" id="btn-more" hidden>+100</button>
         </div>
         <div class="pill" style="padding:0 10px">
           <select class="pillsel" id="sector" aria-label="Secteur d'activité"></select>
         </div>
         <button class="iconbtn" id="btn-refresh" aria-label="Relancer la recherche"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></svg></button>
       </div>
+      <button class="here" id="btn-here" hidden><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Rechercher dans cette zone</button>
     </div>
     <div class="fabs">
-      <button class="iconbtn fab" id="btn-legend" aria-label="Légende et filtre Odoo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 5h16l-6 7v6l-4 2v-8z"/></svg></button>
+      <button class="iconbtn fab" id="btn-cafe" aria-label="Cafés, snacks et stations-service à proximité"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h12v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M8 3c0 1.5 1 1.5 1 3M12 3c0 1.5 1 1.5 1 3"/></svg></button>
+      <button class="iconbtn fab" id="btn-legend" aria-label="Légende et filtres"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 5h16l-6 7v6l-4 2v-8z"/></svg></button>
       <button class="iconbtn fab" id="btn-list" aria-label="Liste des entreprises proches"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
       <button class="iconbtn fab" id="btn-search" aria-label="Rechercher une entreprise"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
       <button class="iconbtn fab" id="btn-locate" aria-label="Recentrer sur ma position"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 3 3 7.5z"/></svg></button>
@@ -342,6 +358,13 @@ details.equip[open]{padding-bottom:14px}
   <!-- ======= Écran Réglages ======= -->
   <section class="screen pad" id="scr-settings" hidden>
     <h1>Réglages</h1>
+    <h2>Boîte à idées</h2>
+    <div class="card stack">
+      <div class="co-sub">Une idée, un problème, une amélioration de l'app ? Écrivez-la ici : elle arrive directement à l'équipe qui développe l'outil, et vous verrez la réponse.</div>
+      <button class="btn block" id="btn-idea">Proposer une idée</button>
+      <div class="row"><button class="btn ghost sm" id="btn-my-ideas">Mes idées</button><button class="btn ghost sm" id="btn-all-ideas" hidden>Idées reçues</button></div>
+      <div class="warn" id="idea-pending" hidden></div>
+    </div>
     <h2>Compte Odoo</h2>
     <div class="card stack" id="odoo-card"></div>
     <h2>Recherche</h2>
@@ -385,7 +408,7 @@ details.equip[open]{padding-bottom:14px}
   <button role="tab" data-tab="map" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>Carte</button>
   <button role="tab" data-tab="visits"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Visites</button>
   <button role="tab" data-tab="calls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>Rappels<span class="badge" id="call-badge" hidden></span></button>
-  <button role="tab" data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Réglages</button>
+  <button role="tab" data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Réglages<span class="badge" id="set-badge" hidden></span></button>
 </nav>
 
 <div class="scrim" id="scrim" hidden></div>
@@ -430,7 +453,7 @@ details.equip[open]{padding-bottom:14px}
    - Carte : Leaflet + OpenStreetMap
    - Stockage : IndexedDB sur l'appareil (aucun serveur)
    ===================================================================== */
-const VERSION = "2.9.1";
+const VERSION = "2.10.1";
 /* Environnement : l'app servie dans un dossier /test/ parle au relais de test et garde ses propres données */
 const IS_TEST = /\/test\//.test(location.pathname);
 /** Stockage local : en test, toutes les clés sont préfixées (même site que la prod) */
@@ -554,10 +577,13 @@ function choiceBox(title, text, options){
 }
 
 /* ---------- Réglages (localStorage, avec garde-fous) ---------- */
-const DEFAULTS = {radius:300, employers:false, excludePublic:true, excludeGE:false, dept:"972", delay:3, name:"", sector:"", pappersToken:""};
+const DEFAULTS = {radius:300, employers:false, excludePublic:true, excludeGE:false, dept:"972", delay:3, name:"", sector:"", pappersToken:"", effectifs:[], formes:[], cafes:false, nav:""};
 let settings = {...DEFAULTS};
 try{ settings = {...DEFAULTS, ...JSON.parse(LS.getItem("settings")||"{}")}; }catch(e){}
 function saveSettings(){ try{ LS.setItem("settings",JSON.stringify(settings)); }catch(e){} }
+/** Clé Pappers : celle de l'app ; en mode test, à défaut, celle de l'app normale du même téléphone */
+function prodPappersToken(){ try{ return JSON.parse(window.localStorage.getItem("settings")||"{}").pappersToken||""; }catch(e){ return ""; } }
+function pappersToken(){ return settings.pappersToken || (IS_TEST ? prodPappersToken() : ""); }
 
 /* ---------- Base locale IndexedDB ---------- */
 const DB = (()=>{
@@ -628,8 +654,21 @@ function normalize(ul, et){
     open: (et.etat_administratif||"A")==="A", diffusible: ul.statut_diffusion!=="P" && !/NON-DIFFUSIBLE/i.test(ul.nom_complet||"")
   };
 }
+/* Filtres 2.10 : effectif (unité légale) et famille de forme juridique — aucun choix = tout afficher */
+const EFF_BUCKETS = [["nc","0 ou non renseigné"],["1-9","1 à 9"],["10-49","10 à 49"],["50+","50 et plus"]];
+function effBucket(code){ code=code||""; if(!code||code==="NN"||code==="00") return "nc"; if(["01","02","03"].includes(code)) return "1-9"; if(["11","12"].includes(code)) return "10-49"; return "50+"; }
+const FORME_FAMS = [["com","Sociétés commerciales"],["inst","Institutionnel"],["autre","Autres"]];
+const FORME_HELP = {com:"SARL, EURL, SAS, SASU, SA, SEL…", inst:"Public, EPIC, organismes privés spécialisés (mutuelles, caisses…)", autre:"Entrepreneurs individuels, SNC, SCI, sociétés civiles, associations…"};
+function formeFam(code){ code=String(code||""); const d=code[0]; if(code.startsWith("52")) return "autre";   // SNC → Autres (décision 01/10)
+  return d==="5" ? "com" : (d==="4"||d==="7"||d==="8") ? "inst" : "autre"; }
+/** 10 salariés ou plus (affichés en priorité sur la carte) */
+const bigCo = c => ["11","12","21","22","31","32","41","42","51","52","53"].includes(c.effectifUl||"");
+const effRank = c => { const o=Object.keys(EFFECTIFS); const i=o.indexOf(c.effectifUl||"NN"); return i<0?0:i; };
+function extraFiltersOn(){ return (settings.effectifs||[]).length>0 || (settings.formes||[]).length>0; }
 function passesFilters(c){
   if(!c.open || !c.diffusible || isNaN(c.lat)) return false;
+  if((settings.effectifs||[]).length && !settings.effectifs.includes(effBucket(c.effectifUl))) return false;
+  if((settings.formes||[]).length && !settings.formes.includes(formeFam(c.forme))) return false;
   if(settings.excludePublic && (c.forme||"")[0]==="7") return false;
   if(settings.excludeGE && c.categorie==="GE") return false;
   if(settings.employers && (!c.effectifUl || c.effectifUl==="NN" || c.effectifUl==="00")) return false;
@@ -637,7 +676,7 @@ function passesFilters(c){
 }
 
 /* ---------- Carte ---------- */
-let map, meMarker, meAccuracy, radiusCircle, layer, pos=null, searchCenter=null;
+let map, meMarker, meAccuracy, radiusCircle, layer, cafeLayer, pos=null, searchCenter=null;
 let companies = new Map();   // siret -> fiche
 let lastQuery = null;        // {lat,lng,radius,sector,page,totalPages,total}
 let watching = false;
@@ -646,6 +685,9 @@ function initMap(){
   map = L.map("map",{zoomControl:false, attributionControl:true, tap:false}).setView([14.6415,-61.0242], 11);
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19, attribution:"© OpenStreetMap"}).addTo(map);
   layer = L.layerGroup().addTo(map);
+  cafeLayer = L.layerGroup().addTo(map);
+  map.on("zoomend", drawMarkers);
+  map.on("moveend", updateHere);
   setupLongPress();
   // Restaure la dernière recherche (consultation hors-ligne)
   try{
@@ -676,7 +718,7 @@ async function search(more=false){
   const btn=$("#btn-refresh"); btn.classList.add("spin");
   const prog=$("#progress");
   if(!more){ companies.clear(); lastQuery={lat:center.lat,lng:center.lng,radius:settings.radius,sector:settings.sector,page:0,totalPages:1,total:0}; searchCenter=center; }
-  const pagesToLoad = more ? 1 : 4;   // 4 × 25 = 100 entreprises au premier chargement
+  const pagesToLoad = more ? 4 : 20;   // 2.10 : jusqu'à 20 × 25 = 500 entreprises du rayon (regroupées à l'affichage), puis +100
   try{
     for(let i=0;i<pagesToLoad;i++){
       if(lastQuery.page>=lastQuery.totalPages) break;
@@ -690,12 +732,12 @@ async function search(more=false){
           if(c.siret && distance(center,c) <= settings.radius*1.05) companies.set(c.siret,c);
         }
       }
-      drawMarkers(); odooRefreshStatus();
+      if(i%2===1 || i===pagesToLoad-1 || lastQuery.page>=lastQuery.totalPages) { drawMarkers(); odooRefreshStatus(); }
       if(i<pagesToLoad-1) await sleep(180);
     }
     try{ LS.setItem("lastSearch", JSON.stringify({q:lastQuery, items:[...companies.values()]})); }catch(e){}
-    sharedRefresh(true);
-  }catch(e){ toast("Recherche impossible : "+e.message); }
+    sharedRefresh(true); drawMarkers(); odooRefreshStatus(); updateHere(); if(settings.cafes) loadCafes();
+  }catch(e){ toast("Recherche impossible : "+e.message); drawMarkers(); }
   finally{ btn.classList.remove("spin"); prog.style.width="0"; setTimeout(()=>prog.style.width="0",300); }
 }
 
@@ -709,15 +751,18 @@ function flagIcon(status){
    Point blanc au centre = déjà visitée · Montre = un contrat se termine dans 6 mois ou moins */
 const CAT_VAR = {horscible:"--od-hors", client:"--od-client", opportunite:"--od-opp", qualifie:"--od-qual", prospect:"--od-inconnu", pending:"--od-connu"};
 const iconCache = {};
-function markerIcon(cat, visited, clock){
-  const k = cat+"|"+visited+"|"+clock; if(iconCache[k]) return iconCache[k];
+/** Rond coloré ; big = 10 salariés ou plus (plus gros) ; n = entreprises empilées au même endroit (badge) */
+function markerIcon(cat, visited, clock, big=false, n=1){
+  const k = cat+"|"+visited+"|"+clock+"|"+big+"|"+n; if(iconCache[k]) return iconCache[k];
   const col = getComputedStyle(document.documentElement).getPropertyValue(CAT_VAR[cat]||"--od-inconnu").trim();
-  const big = cat==="client"||cat==="opportunite";
-  const r = big?9.5:8.5;
+  const imp = cat==="client"||cat==="opportunite";
+  const r = (imp?9.5:8.5) + (big?2:0);
+  const nb = n>1 ? (n>99?"99+":"×"+n) : "";
   const html = `<svg width="30" height="30" viewBox="0 0 30 30" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,.45));overflow:visible">
-    <circle cx="15" cy="15" r="${r}" fill="${col}" stroke="#fff" stroke-width="2.5"/>
+    <circle cx="15" cy="15" r="${r}" fill="${col}" stroke="#fff" stroke-width="${big?3:2.5}"/>
     ${visited?`<circle cx="15" cy="15" r="3.2" fill="#fff"/>`:""}
     ${clock?`<g transform="translate(20.5 3.5)"><circle cx="4.5" cy="4.5" r="5.6" fill="#fff" stroke="#12242a" stroke-width="1.2"/><circle cx="4.5" cy="4.5" r="3.4" fill="none" stroke="#b45309" stroke-width="1.3"/><path d="M4.5 2.6v2.1l1.4 1" fill="none" stroke="#b45309" stroke-width="1.2" stroke-linecap="round"/></g>`:""}
+    ${nb?`<g transform="translate(17 18)"><rect x="0" y="0" width="${nb.length*6+6}" height="13" rx="6.5" fill="#12242a" stroke="#fff" stroke-width="1.2"/><text x="${(nb.length*6+6)/2}" y="9.6" text-anchor="middle" font-family="system-ui,sans-serif" font-size="9.5" font-weight="800" fill="#fff">${nb}</text></g>`:""}
   </svg>`;
   return iconCache[k] = L.divIcon({className:"", html, iconSize:[30,30], iconAnchor:[15,15]});
 }
@@ -741,30 +786,106 @@ function markerCat(c, lv){
   return "prospect";
 }
 
+/* 2.10 — Affichage :
+   1. Les établissements à la même position forment une « pile » : un seul point, badge ×N, liste au toucher.
+      Le point affiché est le plus important : client / opportunité, puis 10 salariés ou plus, puis le reste (hors cible en dernier).
+   2. Au dézoom (zoom < CLUSTER_ZOOM), les points proches sont regroupés en bulles avec un nombre ; toucher = zoomer. */
+const CLUSTER_ZOOM = 16, CLUSTER_PX = 54;
+const CAT_RANK = {client:0, opportunite:1, qualifie:3, prospect:4, pending:4, horscible:6};
+function itemRank(x){ if(x.cat==="client"||x.cat==="opportunite") return CAT_RANK[x.cat]; if(x.cat==="horscible") return 6; return x.big ? 2 : CAT_RANK[x.cat] ?? 4; }
+function sortItems(arr){ return arr.sort((a,b)=> itemRank(a)-itemRank(b) || effRank(b.c)-effRank(a.c) || (a.c.name||"").localeCompare(b.c.name||"")); }
+let mapItems = [];   // dernière liste affichée (piles)
 function drawMarkers(){
   layer.clearLayers();
   const last = lastVisitMap();
   const shown = [...companies.values()].filter(passesFilters);
   // Entreprises visitées manuellement (hors SIRENE) : on les affiche aussi
   for(const v of last.values()){ if((v.manual || String(v.key).startsWith("manual_")) && v.lat) shown.push({key:v.key, name:v.name, address:v.address||"", lat:v.lat, lng:v.lng, manual:true, siret:v.siret||""}); }
-  const seen = new Set();
+  const seen = new Set(), stacks = new Map();
+  let n = 0;
   for(const c of shown){
     const k = keyOf(c); if(seen.has(k)) continue; seen.add(k);
     const lv = last.get(k);
     const cat = markerCat(c, lv), clock = contractSoon(k);
     if(!passesOdooFilter(cat, lv, clock)) continue;
-    const m = L.marker([c.lat,c.lng],{icon: markerIcon(cat, !!lv, clock), zIndexOffset: cat==="client"||cat==="opportunite"?400:(cat==="qualifie"?300:(lv?200:0)), title:c.name});
-    m.on("click",()=> c.manual ? openManual(c) : openCompany(c));
-    layer.addLayer(m);
+    if(!c.manual) n++;
+    const pk = (+c.lat).toFixed(5)+","+(+c.lng).toFixed(5);
+    const it = {c, k, lv, cat, clock, big: !c.manual && bigCo(c)};
+    (stacks.get(pk) || stacks.set(pk, []).get(pk)).push(it);
+  }
+  mapItems = [...stacks.values()].map(sortItems);
+  const z = map.getZoom();
+  const groups = [];
+  if(z < CLUSTER_ZOOM){
+    // Regroupement glouton : les piles les plus importantes servent de centre, les voisines à moins de CLUSTER_PX s'y rattachent
+    const seeds = [];
+    for(const st of [...mapItems].sort((x,y)=>itemRank(x[0])-itemRank(y[0]) || y.length-x.length)){
+      const p = map.project([st[0].c.lat, st[0].c.lng], z);
+      const g = seeds.find(g=>Math.abs(g.p.x-p.x)<CLUSTER_PX && Math.abs(g.p.y-p.y)<CLUSTER_PX);
+      if(g) g.list.push(st); else seeds.push({p, list:[st]});
+    }
+    for(const g of seeds) groups.push(g.list);
+  } else mapItems.forEach(st=>groups.push([st]));
+  for(const g of groups){
+    if(g.length===1) addStackMarker(g[0]);
+    else addClusterMarker(g);
   }
   if(radiusCircle) radiusCircle.remove();
   if(searchCenter) radiusCircle = L.circle([searchCenter.lat,searchCenter.lng],{radius:(lastQuery?.radius)||settings.radius,color:getComputedStyle(document.documentElement).getPropertyValue("--accent").trim(),weight:1.5,fillOpacity:.04,dashArray:"4 6",interactive:false}).addTo(map);
-  const n = [...companies.values()].filter(c=>{ const lv=last.get(keyOf(c)); return passesFilters(c) && passesOdooFilter(markerCat(c,lv), lv, contractSoon(keyOf(c))); }).length;
   const r = lastQuery ? fmtDist(lastQuery.radius) : "";
   $("#count").innerHTML = lastQuery ? `<b>${n}</b> entreprise${n>1?"s":""} · ${r}` + (lastQuery.total>0 && lastQuery.page<lastQuery.totalPages ? ` <span style="opacity:.7">sur ${lastQuery.total.toLocaleString("fr-FR")}</span>`:"") : "Localisation…";
   if(odooFilter) $("#count").innerHTML += ` · <span style="color:var(--accent);font-weight:700">${esc(ODOO_FILTERS[odooFilter])}</span>`;
+  else if(extraFiltersOn()) $("#count").innerHTML += ` · <span style="color:var(--accent);font-weight:700">filtrées</span>`;
   $("#btn-more").hidden = !(lastQuery && lastQuery.page<lastQuery.totalPages);
-  $("#btn-legend")?.classList.toggle("on", !!odooFilter);
+  $("#btn-legend")?.classList.toggle("on", !!odooFilter || extraFiltersOn());
+}
+function addStackMarker(st){
+  const top = st[0], c = top.c;
+  const zi = top.cat==="client"||top.cat==="opportunite" ? 400 : top.big ? 350 : top.cat==="qualifie" ? 300 : top.lv ? 200 : top.cat==="horscible" ? -50 : 0;
+  const m = L.marker([c.lat,c.lng],{icon: markerIcon(top.cat, !!top.lv, top.clock, top.big, st.length), zIndexOffset: zi + (st.length>1?20:0), title: st.length>1 ? `${c.name} et ${st.length-1} autre${st.length>2?"s":""}` : c.name});
+  m.on("click",()=> st.length>1 ? openStack(st) : (c.manual ? openManual(c) : openCompany(c)));
+  layer.addLayer(m);
+}
+function addClusterMarker(g){
+  const all = g.flat(); const nb = all.length;
+  const la=g[0][0].c.lat, lo=g[0][0].c.lng;   // position de la pile « centre »
+  const hasC = all.some(x=>x.cat==="client"), hasO = all.some(x=>x.cat==="opportunite");
+  const sz = nb<10 ? 34 : nb<50 ? 40 : nb<200 ? 46 : 52;
+  const icon = L.divIcon({className:"", iconSize:[sz,sz], iconAnchor:[sz/2,sz/2], html:`<div class="clu" style="width:${sz}px;height:${sz}px">${nb}${hasC?'<i class="c"></i>':""}${hasO?'<i class="o"></i>':""}</div>`});
+  const m = L.marker([la,lo],{icon, zIndexOffset:500, title:`${nb} entreprises`});
+  m.on("click",()=>{ const b=L.latLngBounds(g.map(st=>[st[0].c.lat, st[0].c.lng])); const zz=Math.min(Math.max(map.getBoundsZoom(b.pad(0.3)), map.getZoom()+1), CLUSTER_ZOOM); map.setView(b.getCenter(), zz); });
+  layer.addLayer(m);
+}
+/** Liste des entreprises empilées à la même adresse */
+function openStack(st){
+  const ref = anchor || pos || searchCenter;
+  const d = ref ? distance(ref, st[0].c) : null;
+  openSheet(`<div class="co-name">${st.length} entreprises à cette adresse</div><div class="co-sub">${esc(st[0].c.address||"")}${d!=null?" · à "+fmtDist(d):""}</div><div class="co-sub">Les plus importantes en premier (clients, opportunités, 10 salariés et plus)</div><div style="height:10px"></div><div class="list results">${st.map((x,i)=>tileCompany(x.c,null,i)).join("")}</div>`);
+  $("#sheet-body").querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>{ const x=st[+b.dataset.i]; x.c.manual ? openManual(x.c) : openCompany(x.c); });
+}
+
+/* ---------- 2.10 : « Rechercher dans cette zone » ----------
+   Après un déplacement ou un zoom sur la carte, un bouton propose de prospecter la zone affichée :
+   centre = centre de la carte, rayon = celui (parmi 100 m … 5 km) qui couvre le mieux l'écran. */
+function viewRadius(){
+  const b=map.getBounds(), c=map.getCenter();
+  const half=Math.min(distance({lat:c.lat,lng:c.lng},{lat:c.lat,lng:b.getEast()}), distance({lat:c.lat,lng:c.lng},{lat:b.getNorth(),lng:c.lng}));
+  let best=RADII[0]; for(const r of RADII) if(Math.abs(r-half) < Math.abs(best-half)) best=r;
+  return best;
+}
+function updateHere(){
+  const btn=$("#btn-here"); if(!btn || !map) return;
+  if(!searchCenter || !lastQuery){ btn.hidden = !!(pos || anchor); return; }   // sans GPS ni adresse : proposer la zone affichée
+  const c=map.getCenter(); const moved=distance({lat:c.lat,lng:c.lng}, searchCenter);
+  const r=lastQuery.radius, vr=viewRadius();
+  btn.hidden = !(moved > Math.max(r*0.45, 60) || vr >= r*4 || vr*4 <= r);
+}
+async function searchHere(){
+  const c=map.getCenter(); const r=viewRadius();
+  if(r!==settings.radius){ settings.radius=r; saveSettings(); renderRadius(); }
+  setAnchor(c.lat, c.lng, "Zone de la carte", true);
+  $("#btn-here").hidden=true;
+  try{ const j=await (await fetch(`${GEO_REVERSE}?lon=${c.lng}&lat=${c.lat}&limit=1`)).json(); const lb=j.features?.[0]?.properties; if(lb && anchor && anchor.lat===c.lat){ anchor.label="Zone : "+(lb.city||lb.label); $("#addr-q").value=anchor.label; } }catch(e){}
 }
 
 /* ---------- Prospection autour d'une adresse ----------
@@ -774,13 +895,13 @@ const GEO_SEARCH = "https://data.geopf.fr/geocodage/search";
 let anchor = null, anchorMarker = null;
 function currentCenter(){ return anchor ? {lat:anchor.lat,lng:anchor.lng} : (pos ? {lat:pos.lat,lng:pos.lng} : null); }
 const pinIcon = L.divIcon({className:"",iconSize:[30,38],iconAnchor:[15,37],html:'<svg class="pin" viewBox="0 0 30 38"><path d="M15 1C7.3 1 1 7.2 1 14.8 1 25 15 37 15 37s14-12 14-22.2C29 7.2 22.7 1 15 1z" fill="#e86f3e" stroke="#fff" stroke-width="2"/><circle cx="15" cy="14.5" r="5" fill="#fff"/></svg>'});
-function setAnchor(lat, lng, label){
+function setAnchor(lat, lng, label, keepView=false){
   anchor = {lat, lng, label};
   if(anchorMarker) anchorMarker.remove();
   anchorMarker = L.marker([lat,lng],{icon:pinIcon, zIndexOffset:900, interactive:false}).addTo(map);
   $("#addr-q").value = label; $("#addr-q").blur(); $("#addr-sugg").hidden = true;
   $("#addr-clear").hidden = false; $("#addr").classList.add("on");
-  map.setView([lat,lng], zoomFor(settings.radius));
+  if(!keepView) map.setView([lat,lng], zoomFor(settings.radius));
   search();
 }
 function clearAnchor(){
@@ -988,8 +1109,8 @@ function pCache(key, val){
   }catch(e){ return null; }
 }
 async function pappers(path, params={}){
-  if(!settings.pappersToken) throw new Error("clé API Pappers absente (Réglages)");
-  const u = new URL(PAPPERS+path); u.searchParams.set("api_token", settings.pappersToken);
+  if(!pappersToken()) throw new Error("clé API Pappers absente (Réglages)");
+  const u = new URL(PAPPERS+path); u.searchParams.set("api_token", pappersToken());
   Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));
   let r; try{ r = await fetch(u, {headers:{Accept:"application/json"}}); }catch(e){ throw new Error(navigator.onLine ? "Pappers injoignable depuis le navigateur" : "hors ligne"); }
   if(r.status===401) throw new Error("clé API refusée ou jetons épuisés");
@@ -1002,7 +1123,7 @@ async function pappers(path, params={}){
 const eur = n => n==null||n==="" ? "" : fmtEur(+n);
 async function showJetons(){
   const info=$("#jetons-info");
-  if(!settings.pappersToken){ info.textContent="Saisissez d'abord votre clé API."; return; }
+  if(!pappersToken()){ info.textContent="Saisissez d'abord votre clé API."; return; }
   info.textContent="Interrogation de Pappers…";
   try{
     const j = await pappers("/suivi-jetons");
@@ -1464,7 +1585,7 @@ async function rappelAction(a, kind){
 }
 function renderSettings(){
   $("#set-employers").checked=settings.employers; $("#set-public").checked=settings.excludePublic; $("#set-ge").checked=settings.excludeGE;
-  $("#set-dept").value=settings.dept; $("#set-delay").value=String(settings.delay); $("#set-name").value=settings.name; $("#set-pappers").value=settings.pappersToken||"";
+  $("#set-dept").value=settings.dept; $("#set-delay").value=String(settings.delay); $("#set-name").value=settings.name; $("#set-pappers").value=settings.pappersToken||""; if(IS_TEST) $("#set-pappers").placeholder = prodPappersToken() ? "Clé de l'app normale utilisée" : "pappers.fr › Mon compte › API";
   const companiesN = new Set(visits.map(v=>v.key)).size;
   $("#data-stats").textContent = `${visits.length} visite${visits.length>1?"s":""} · ${companiesN} entreprise${companiesN>1?"s":""} · stockées sur cet appareil`;
   $("#ver").textContent = "Version "+VERSION;
@@ -1544,7 +1665,7 @@ $("#lg-go").onclick = async ()=>{
     saveAuth(); try{ LS.setItem("odooLogin", login); }catch(err){}
     $("#lg-key").value="";
     if(!settings.name){ settings.name=j.name; saveSettings(); }
-    hideLogin(); toast("Connecté : "+j.name); renderSettings(); odooRefreshStatus(); flushOutbox(); loadRappels(); loadEtiquettes(); sharedRefresh(true);
+    hideLogin(); toast("Connecté : "+j.name); renderSettings(); odooRefreshStatus(); flushOutbox(); loadRappels(); loadEtiquettes(); sharedRefresh(true); flushIdeas(); loadIdeaBadge();
   }catch(err){
     e.hidden=false; e.textContent = navigator.onLine ? err.message : "Pas de réseau : la connexion à Odoo est impossible pour l'instant.";
     $("#lg-skip").hidden=false;   // secours si le relais ou le réseau sont indisponibles
@@ -1557,7 +1678,7 @@ $("#lg-skip").onclick = hideLogin;
 /** Vérifie en arrière-plan que la session est toujours valide (clé révoquée, etc.) */
 async function odooCheckSession(){
   if(!navigator.onLine) return;
-  try{ const me = await relay("/auth/me"); odooAuth = {...odooAuth, name:me.name, admin:!!me.admin, expires:me.expires}; saveAuth(); renderOdooCard(); }catch(e){}
+  try{ const me = await relay("/auth/me"); odooAuth = {...odooAuth, name:me.name, admin:!!me.admin, expires:me.expires}; saveAuth(); renderOdooCard(); loadIdeaBadge(); }catch(e){}
 }
 
 function renderOdooCard(){
@@ -1636,27 +1757,48 @@ function passesOdooFilter(cat, lv, clock){
   if(odooFilter==="contrat") return !!clock;
   return cat===odooFilter;
 }
-function openLegend(){
+function openLegend(keepScroll){
+  const sc = keepScroll ? $("#sheet-body").scrollTop : 0;
   const last=lastVisitMap(); const all=[...companies.values()].filter(passesFilters);
+  const base=[...companies.values()].filter(c=>c.open&&c.diffusible&&!isNaN(c.lat));
+  const nEff = k => base.filter(c=>effBucket(c.effectifUl)===k).length, nFor = k => base.filter(c=>formeFam(c.forme)===k).length;
   const count = f => { const save=odooFilter; odooFilter=f; const n=all.filter(c=>{ const lv=last.get(keyOf(c)); return passesOdooFilter(markerCat(c,lv), lv, contractSoon(keyOf(c))); }).length; odooFilter=save; return n; };
-  const ic = (cat,v,cl) => markerIcon(cat,v,cl).options.html;
-  openSheet(`<div class="co-name">Légende</div>
+  const ic = (...a) => markerIcon(...a).options.html;
+  openSheet(`<div class="co-name">Légende et filtres</div>
+    <h2>Filtres</h2>
+    <div class="co-sub">Rien de coché = tout afficher. Plusieurs choix possibles.</div>
+    <div class="fsec">Effectif (salariés de l'entreprise)</div>
+    <div class="sol sm">${EFF_BUCKETS.map(([k,l])=>`<button type="button" data-e="${k}" aria-pressed="${(settings.effectifs||[]).includes(k)}">${esc(l)} <span style="opacity:.65">${nEff(k)}</span></button>`).join("")}</div>
+    <div class="fsec">Forme juridique</div>
+    <div class="sol sm">${FORME_FAMS.map(([k,l])=>`<button type="button" data-j="${k}" aria-pressed="${(settings.formes||[]).includes(k)}">${esc(l)} <span style="opacity:.65">${nFor(k)}</span></button>`).join("")}</div>
+    <div class="co-sub" style="margin-top:6px">${FORME_FAMS.map(([k,l])=>`<b>${esc(l)}</b> : ${esc(FORME_HELP[k])}`).join("<br>")}</div>
+    ${extraFiltersOn()?`<button class="btn ghost block" id="lg-reset" style="margin-top:12px">Retirer les filtres effectif / forme</button>`:""}
+    ${odooAuth?"":`<p class="warn" style="margin-top:12px">Connectez-vous à Odoo (Réglages) pour afficher les clients et opportunités.</p>`}
+    <h2>Afficher</h2>
+    <div class="fchoice">
+      <button data-f="" aria-pressed="${!odooFilter}">Toutes les entreprises<small>${all.length}</small></button>
+      ${Object.entries(ODOO_FILTERS).map(([k,l])=>`<button data-f="${k}" aria-pressed="${odooFilter===k}">${esc(l)}<small>${count(k)}</small></button>`).join("")}
+    </div>
+    <h2>Légende</h2>
     <div class="lgd" style="margin-top:10px">
       <span>${ic("client")}<span><b>Client</b> — opportunité « Clos et accepté »</span></span>
       <span>${ic("opportunite")}<span><b>Opportunité en cours</b></span></span>
       <span>${ic("qualifie")}<span><b>Prospect qualifié</b> — déjà visité, équipement renseigné</span></span>
       <span>${ic("horscible")}<span><b>Hors cible</b> — inutile de repasser</span></span>
       <span>${ic("prospect")}<span><b>Prospect</b> — non rattaché à Odoo ou sans opportunité</span></span>
+      <span>${ic("prospect",false,false,true)}<span>Gros point : <b>10 salariés ou plus</b></span></span>
+      <span>${ic("prospect",false,false,false,3)}<span>Badge ×N : <b>plusieurs entreprises à la même adresse</b> (touchez pour la liste)</span></span>
+      <span><span class="clu" style="width:30px;height:30px;font-size:11px;flex:none">12</span><span>Bulle : <b>entreprises regroupées</b> (touchez pour zoomer)</span></span>
       <span>${ic("prospect",true)}<span>Point blanc : <b>déjà visitée</b></span></span>
       <span>${ic("prospect",false,true)}<span>Montre : <b>un contrat se termine</b> dans 6 mois ou moins</span></span>
     </div>
-    ${odooAuth?"":`<p class="warn" style="margin-top:12px">Connectez-vous à Odoo (Réglages) pour afficher les clients et opportunités.</p>`}
-    <h2>Afficher</h2>
-    <div class="fchoice">
-      <button data-f="" aria-pressed="${!odooFilter}">Toutes les entreprises<small>${all.length}</small></button>
-      ${Object.entries(ODOO_FILTERS).map(([k,l])=>`<button data-f="${k}" aria-pressed="${odooFilter===k}">${esc(l)}<small>${count(k)}</small></button>`).join("")}
-    </div>`);
+`);
+  if(keepScroll) $("#sheet-body").scrollTop = sc;
   $("#sheet-body").querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{ odooFilter=b.dataset.f; drawMarkers(); closeSheet(); });
+  const tog = (arr, k) => arr.includes(k) ? arr.filter(x=>x!==k) : [...arr, k];
+  $("#sheet-body").querySelectorAll("[data-e]").forEach(b=>b.onclick=()=>{ settings.effectifs=tog(settings.effectifs||[], b.dataset.e); saveSettings(); drawMarkers(); openLegend(true); });
+  $("#sheet-body").querySelectorAll("[data-j]").forEach(b=>b.onclick=()=>{ settings.formes=tog(settings.formes||[], b.dataset.j); saveSettings(); drawMarkers(); openLegend(true); });
+  const rs=$("#lg-reset"); if(rs) rs.onclick=()=>{ settings.effectifs=[]; settings.formes=[]; saveSettings(); drawMarkers(); openLegend(true); };
 }
 
 /* ---------- Bloc « Odoo » de la fiche entreprise ---------- */
@@ -1911,9 +2053,10 @@ function openFiche(c, tab){
     <div id="fi-od" style="margin-top:6px"></div>
     <div id="fi-cible" style="margin-top:8px"></div>
     ${lv?`<div class="co-sub" style="margin-top:6px"><span class="st ${lv.status}" style="font-size:11.5px;padding:2px 8px">${esc(stLabel(lv.status))}</span> Dernier passage le ${fmtDate(lv.date)}${lv.author?" par "+esc(lv.author):""}</div>`:""}
-    <button class="btn block" id="fi-visit" style="margin-top:10px">Saisir une visite</button>
+    <div class="row" style="margin-top:10px;flex-wrap:nowrap"><button class="btn" id="fi-visit" style="flex:1">Saisir une visite</button>${c.lat?`<button class="btn ghost" id="fi-go" style="flex:none">Y aller</button>`:""}</div>
     <div class="etabs" id="fi-tabs" style="margin-top:12px">${TABS.map(([t,l])=>`<button type="button" data-t="${t}" aria-selected="${t===tab}">${l}</button>`).join("")}</div>
     <div id="fi-pane"></div>`);
+  const go=$("#fi-go"); if(go) go.onclick=()=>goTo(c.lat, c.lng, c.name);
   $("#fi-visit").onclick=()=>{ closeSheet(); openVisitForm(c.manual?companyFromVisit({...(hist[0]||{}), ...c, key:k, manual:true}):c); };
   $("#fi-tabs").onclick=e=>{ const b=e.target.closest("[data-t]"); if(!b) return; F.tab=b.dataset.t; $("#fi-tabs").querySelectorAll("button").forEach(x=>x.setAttribute("aria-selected",x===b)); drawPane(); };
   loadOdooForFiche().then(()=>{ drawHeaderOdoo(); drawCible(); drawPane(); });
@@ -1981,7 +2124,7 @@ async function paneEntreprise(pane, c){
   pane.innerHTML = `<div id="fi-odoo"></div>
     ${c.manual?"":`<h2>Données de la base publique</h2><div class="card">${companyBlock(c)}</div>
     ${c.siren?`<button class="btn ghost block" id="co-carto" style="margin-top:12px">Cartographie des dirigeants</button>`:""}
-    ${c.siren&&settings.pappersToken?`<div class="pp-box"><div class="pp-head">Pappers</div><div class="row">
+    ${c.siren&&pappersToken()?`<div class="pp-box"><div class="pp-head">Pappers</div><div class="row">
       <button class="btn sm pp" id="co-pp-fiche">Fiche complète<small>${pCache("fiche:"+c.siren)?"déjà chargée · gratuit":"1 jeton"}</small></button>
       <button class="btn sm pp" id="co-pp-carto">Cartographie<small>${pCache("carto:"+c.siren)?"déjà chargée · gratuit":"3 jetons"}</small></button></div></div>`:""}`}
     <div class="row links" style="margin-top:12px">
@@ -2155,6 +2298,174 @@ async function shareOldVisits(){
   for(const v of todo) queueVisit(v, companyFromVisit(v), v.equip, true);
 }
 
+/* ---------- 2.10 : « Y aller » (Plans, Google Maps, Waze) ---------- */
+const NAV_APPS = {
+  plans:{label:"Plans (Apple)", url:(la,lo)=>`https://maps.apple.com/?daddr=${la},${lo}&dirflg=d`},
+  google:{label:"Google Maps", url:(la,lo)=>`https://www.google.com/maps/dir/?api=1&destination=${la},${lo}&travelmode=driving`},
+  waze:{label:"Waze", url:(la,lo)=>`https://waze.com/ul?ll=${la},${lo}&navigate=yes`}};
+async function goTo(lat, lng, name){
+  let keys = IS_ANDROID ? ["google","waze"] : ["plans","google","waze"];
+  if(settings.nav && keys.includes(settings.nav)) keys = [settings.nav, ...keys.filter(k=>k!==settings.nav)];
+  const k = await choiceBox("Y aller", name||"", [...keys.map(k=>({k, label:NAV_APPS[k].label})), {k:"", label:"Annuler", ghost:true}]);
+  if(!k) return;
+  settings.nav=k; saveSettings();
+  window.open(NAV_APPS[k].url(lat, lng), "_blank", "noopener");
+}
+
+/* ---------- 2.10 : pauses (cafés, bars, snacks) et stations-service — OpenStreetMap, API Overpass ---------- */
+const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
+const cafeCache = new Map(); let cafes = [], cafeSeq = 0;
+const POI_KINDS = {
+  cafe:{label:"Café", emoji:"☕", col:"#7c4a26", z:600, svg:`<path d="M8.2 11.5h9v3.3a3.6 3.6 0 0 1-3.6 3.6h-1.8a3.6 3.6 0 0 1-3.6-3.6z" fill="#fff"/><path d="M17.2 12.3h1.1a1.8 1.8 0 0 1 0 3.6h-1.3" fill="none" stroke="#fff" stroke-width="1.4"/><path d="M11 7.5c0 1 .7 1 .7 2.1M14 7.5c0 1 .7 1 .7 2.1" fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/><path d="M8 20h10" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>`},
+  bar:{label:"Bar", emoji:"☕", col:"#7c4a26", z:600},
+  snack:{label:"Snack", emoji:"🥪", col:"#c2410c", z:600, svg:`<path d="M7.5 13a6.5 4.6 0 0 1 13 0z" fill="#fff"/><rect x="7" y="14.3" width="14" height="2" rx="1" fill="#fff"/><path d="M7.5 17.8h13a2.2 2.2 0 0 1-2.2 2.2h-8.6a2.2 2.2 0 0 1-2.2-2.2z" fill="#fff"/>`},
+  fuel:{label:"Station-service", emoji:"⛽", col:"#1d4ed8", z:600, svg:`<rect x="8" y="7.5" width="8" height="13" rx="1.3" fill="#fff"/><rect x="9.6" y="9.2" width="4.8" height="3.4" rx=".6" fill="#1d4ed8"/><path d="M16 11.5h1.6a1.2 1.2 0 0 1 1.2 1.2v4.5a1.1 1.1 0 0 0 2.2 0v-6.5l-2-2" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>`}};
+POI_KINDS.bar.svg = POI_KINDS.cafe.svg;
+const poiIcons = {};
+function poiIcon(k){ const p=POI_KINDS[k]||POI_KINDS.cafe; return poiIcons[k] ||= L.divIcon({className:"", iconSize:[28,28], iconAnchor:[14,14], html:`<svg width="28" height="28" viewBox="0 0 28 28" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,.45))"><circle cx="14" cy="14" r="12.5" fill="${p.col}" stroke="#fff" stroke-width="2"/>${p.svg}</svg>`}); }
+/** Snacks : fast_food dans OSM (ou cuisine/nom « snack ») */
+function poiKind(t){ if(t.amenity==="fuel") return "fuel"; if(t.amenity==="fast_food" || /snack/i.test((t.name||"")+" "+(t.cuisine||""))) return "snack"; return t.amenity==="bar" ? "bar" : "cafe"; }
+
+/* Horaires OSM (« Mo-Fr 07:00-18:00; Sa 08:00-12:00 ») : affichage en français et ouvert / fermé maintenant (cas simples) */
+const OH_D = ["Mo","Tu","We","Th","Fr","Sa","Su"], OH_FR = {Mo:"lun",Tu:"mar",We:"mer",Th:"jeu",Fr:"ven",Sa:"sam",Su:"dim",PH:"fériés",off:"fermé"};
+function ohFr(oh){ return String(oh).replace(/\b(Mo|Tu|We|Th|Fr|Sa|Su|PH|off)\b/g, m=>OH_FR[m]).replace(/24\/7/,"24 h/24, 7 j/7").replace(/;\s*/g," · ").replace(/:00\b/g," h").replace(/(\d{2}):(\d{2})/g,"$1 h $2"); }
+function ohOpenNow(oh, now=new Date()){
+  oh=String(oh||"").trim(); if(!oh) return null; if(oh==="24/7") return true;
+  const day=(now.getDay()+6)%7, min=now.getHours()*60+now.getMinutes();
+  let res=null, understood=false;
+  for(const rule of oh.split(";").map(x=>x.trim()).filter(Boolean)){
+    const m=rule.match(/^((?:(?:Mo|Tu|We|Th|Fr|Sa|Su)(?:-(?:Mo|Tu|We|Th|Fr|Sa|Su))?,?)+)?\s*(.*)$/); if(!m) return null;
+    const daysStr=m[1], times=m[2].trim();
+    let days=[0,1,2,3,4,5,6];
+    if(daysStr){ days=[]; for(const part of daysStr.split(",").filter(Boolean)){ const [a,b]=part.split("-"); const i=OH_D.indexOf(a), j=b?OH_D.indexOf(b):i; if(i<0||j<0) return null; for(let k=i;;k=(k+1)%7){ days.push(k); if(k===j) break; } } }
+    if(!days.includes(day)) { understood=true; continue; }
+    if(times==="off"||times==="closed"){ res=false; understood=true; continue; }
+    const tr=[...times.matchAll(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/g)]; if(!tr.length) return null;
+    res = tr.some(x=>{ const a=+x[1]*60+ +x[2], b=+x[3]*60+ +x[4]; return b>a ? (min>=a&&min<b) : (min>=a||min<b); });
+    understood=true;
+  }
+  return understood ? (res ?? false) : null;
+}
+
+async function loadCafes(){
+  const ctr = searchCenter || currentCenter() || (map && map.getCenter());
+  if(!ctr || !navigator.onLine) return;
+  const r = Math.min(3000, Math.max(800, (lastQuery?.radius||settings.radius)*1.5));
+  const ck = ctr.lat.toFixed(3)+","+ctr.lng.toFixed(3)+","+r;
+  const my = ++cafeSeq;
+  let list = cafeCache.get(ck);
+  if(!list){
+    const q = `[out:json][timeout:25];(nwr["amenity"~"^(cafe|bar|fast_food|fuel)$"](around:${Math.round(r)},${ctr.lat.toFixed(6)},${ctr.lng.toFixed(6)}););out center 300;`;
+    for(const url of OVERPASS){
+      try{
+        const res = await fetch(url, {method:"POST", body:"data="+encodeURIComponent(q), headers:{"Content-Type":"application/x-www-form-urlencoded"}});
+        if(!res.ok) continue;
+        const j = await res.json();
+        list = (j.elements||[]).map(e=>({id:e.type+e.id, lat:e.lat??e.center?.lat, lng:e.lon??e.center?.lon, t:e.tags||{}})).filter(x=>x.lat&&x.lng).map(x=>({...x, k:poiKind(x.t)}));
+        cafeCache.set(ck, list); break;
+      }catch(e){}
+    }
+    if(!list){ if(my===cafeSeq) toast("Pauses et stations indisponibles pour le moment"); return; }
+  }
+  if(my!==cafeSeq || !settings.cafes) return;
+  cafes = list; drawCafes();
+  if(!list.length) toast("Aucun café, snack ou station référencé dans OpenStreetMap ici");
+}
+function drawCafes(){
+  cafeLayer.clearLayers(); if(!settings.cafes) return;
+  for(const x of cafes){
+    const p=POI_KINDS[x.k]||POI_KINDS.cafe;
+    const m = L.marker([x.lat,x.lng],{icon:poiIcon(x.k), zIndexOffset:p.z, title:x.t.name||p.label});
+    m.on("click",()=>openCafe(x)); cafeLayer.addLayer(m);
+  }
+}
+function openCafe(x){
+  const t=x.t, p=POI_KINDS[x.k||poiKind(t)]||POI_KINDS.cafe, kind=p.label;
+  const ref = pos || anchor || searchCenter; const d = ref ? distance(ref, x) : null;
+  const addr = [[t["addr:housenumber"], t["addr:street"]].filter(Boolean).join(" "), t["addr:city"]].filter(Boolean).join(", ");
+  const name = t.name || t.brand || kind+" sans nom";
+  const open = ohOpenNow(t.opening_hours);
+  const tel = t.phone||t["contact:phone"];
+  openSheet(`<div class="chips" style="margin-top:6px"><span class="tag">${p.emoji} ${esc(kind)}</span>${d!=null?`<span class="tag tabular">à ${fmtDist(d)}</span>`:""}${open===true?`<span class="tag" style="background:color-mix(in srgb,var(--od-client) 18%,var(--surface));color:var(--od-client)">Ouvert maintenant</span>`:open===false?`<span class="tag" style="color:var(--st-refused)">Fermé maintenant</span>`:""}</div>
+    <div class="co-name">${esc(name)}</div>
+    ${t.brand&&t.name&&t.brand!==t.name?`<div class="co-sub">${esc(t.brand)}</div>`:""}
+    ${addr?`<div class="co-sub">${esc(addr)}</div>`:""}
+    <div class="co-sub" style="margin-top:6px"><b>Horaires :</b> ${t.opening_hours?esc(ohFr(t.opening_hours)):"non renseignés"}</div>
+    ${tel?`<div class="co-sub">Tél. : <a href="tel:${esc(tel.replace(/\s/g,""))}">${esc(tel)}</a></div>`:""}
+    <button class="btn block" id="cf-go" style="margin-top:12px">Y aller</button>
+    <p class="co-sub" style="margin-top:10px">Source : OpenStreetMap. Informations parfois incomplètes.</p>`);
+  $("#cf-go").onclick=()=>goTo(x.lat, x.lng, name);
+}
+function toggleCafes(){
+  settings.cafes = !settings.cafes; saveSettings();
+  $("#btn-cafe").classList.toggle("on", settings.cafes);
+  if(settings.cafes){ toast("Cafés, snacks et stations affichés"); loadCafes(); } else { cafeLayer.clearLayers(); toast("Pauses et stations masquées"); }
+}
+
+/* ---------- 2.10 : boîte à idées (relais → table « idees », lue par Geoffrey dans l'app ou /admin) ---------- */
+const IDEA_CATS = [["carte","Carte"],["fiche","Fiche entreprise"],["visite","Visite"],["rappels","Rappels"],["odoo","Odoo"],["autre","Autre"]];
+const IDEA_ST = {nouvelle:"Nouvelle", lue:"Lue", retenue:"Retenue", livree:"Livrée", ecartee:"Écartée"};
+let ideasPending = []; try{ ideasPending = JSON.parse(LS.getItem("ideesPending")||"[]"); }catch(e){}
+function saveIdeasPending(){ try{ LS.setItem("ideesPending", JSON.stringify(ideasPending)); }catch(e){} const el=$("#idea-pending"); if(el){ el.hidden=!ideasPending.length; el.textContent=ideasPending.length+" idée"+(ideasPending.length>1?"s":"")+" en attente d'envoi (hors ligne)"; } }
+async function flushIdeas(){
+  if(!odooAuth || !navigator.onLine || !ideasPending.length) return;
+  for(const x of [...ideasPending]){ try{ await relay("/idees/add",{method:"POST",body:x}); ideasPending=ideasPending.filter(y=>y.id!==x.id); }catch(e){ break; } }
+  saveIdeasPending();
+}
+function openIdeaForm(){
+  let cat="autre";
+  openModal({title:"Boîte à idées", right:"Envoyer", html:`<div class="stack">
+    <div class="co-sub">Décrivez ce qui vous manque ou vous gêne, avec un exemple si possible. Votre nom est joint automatiquement.</div>
+    <div class="fsec">Sujet</div>
+    <div class="sol sm" id="id-cat">${IDEA_CATS.map(([k,l])=>`<button type="button" data-k="${k}" aria-pressed="${k===cat}">${esc(l)}</button>`).join("")}</div>
+    <label class="f">Votre idée *<textarea id="id-txt" rows="7" class="inp" placeholder="Ex. : pouvoir filtrer les entreprises par code NAF…"></textarea></label>
+  </div>`, onRight: async ()=>{
+    const texte=$("#id-txt").value.trim(); if(texte.length<5){ toast("Écrivez votre idée"); return; }
+    if(!odooAuth){ toast("Connectez-vous à Odoo (Réglages) pour envoyer une idée"); return; }
+    const x={id:uid(), texte, categorie:cat, version:VERSION+(IS_TEST?" test":""), at:new Date().toISOString()};
+    ideasPending.push(x); saveIdeasPending(); closeModal();
+    await flushIdeas();
+    toast(ideasPending.some(y=>y.id===x.id) ? "Idée gardée : envoi dès le retour du réseau" : "Merci ! Idée envoyée");
+  }});
+  $("#id-cat").onclick=e=>{ const b=e.target.closest("[data-k]"); if(!b) return; cat=b.dataset.k; $("#id-cat").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed", x===b)); };
+}
+function ideaCard(x, admin){
+  return `<div class="idea" data-id="${x.id}">
+    <div class="m"><span class="ist ${esc(x.statut)}">${esc(IDEA_ST[x.statut]||x.statut)}</span> ${esc((IDEA_CATS.find(c=>c[0]===x.categorie)||[,"Autre"])[1])} · ${esc(fmtDate(x.created))}${admin?` · <b>${esc(x.name||x.login)}</b>`:""}${x.version?` · v${esc(x.version)}`:""}</div>
+    <div class="t">${esc(x.texte)}</div>
+    ${!admin && x.reponse?`<div class="r"><b>Réponse :</b> ${esc(x.reponse)}</div>`:""}
+    ${admin?`<div class="sol sm" data-st>${Object.entries(IDEA_ST).map(([k,l])=>`<button type="button" data-s="${k}" aria-pressed="${x.statut===k}">${esc(l)}</button>`).join("")}</div>
+      <textarea class="inp" rows="2" data-rep placeholder="Réponse visible par ${esc(x.name||"le commercial")} (facultatif)">${esc(x.reponse||"")}</textarea>
+      <button class="btn ghost sm" data-save>Enregistrer</button>`:""}
+  </div>`;
+}
+async function openMyIdeas(){
+  if(!odooAuth){ toast("Connectez-vous à Odoo"); return; }
+  openModal({title:"Mes idées", html:`<div class="co-sub">Chargement…</div>`});
+  try{ const j=await relay("/idees/mine"); const L2=j.idees||[];
+    $("#m-body").innerHTML = (ideasPending.length?`<div class="warn">${ideasPending.length} en attente d'envoi</div>`:"") + (L2.length ? `<div class="stack">${L2.map(x=>ideaCard(x,false)).join("")}</div>` : `<div class="co-sub">Vous n'avez pas encore proposé d'idée.</div>`);
+  }catch(e){ $("#m-body").innerHTML=`<div class="co-sub">${esc(e.message)}</div>`; }
+}
+async function openAllIdeas(){
+  openModal({title:"Idées reçues", html:`<div class="co-sub">Chargement…</div>`});
+  try{ const j=await relay("/admin/idees"); const L2=j.idees||[];
+    $("#m-body").innerHTML = L2.length ? `<div class="co-sub" style="margin-bottom:8px">${L2.length} idée${L2.length>1?"s":""} · ${j.nouvelles||0} nouvelle${(j.nouvelles||0)>1?"s":""}</div><div class="stack">${L2.map(x=>ideaCard(x,true)).join("")}</div>` : `<div class="co-sub">Aucune idée pour l'instant.</div>`;
+    $("#m-body").querySelectorAll(".idea").forEach(card=>{
+      let st = (L2.find(x=>String(x.id)===card.dataset.id)||{}).statut;
+      card.querySelector("[data-st]").onclick=e=>{ const b=e.target.closest("[data-s]"); if(!b) return; st=b.dataset.s; card.querySelectorAll("[data-s]").forEach(x=>x.setAttribute("aria-pressed", x===b)); };
+      card.querySelector("[data-save]").onclick=async()=>{ try{ await relay("/admin/idees/set",{method:"POST",body:{id:card.dataset.id, statut:st, reponse:card.querySelector("[data-rep]").value.trim()}}); toast("Enregistré"); const ist=card.querySelector(".ist"); ist.className="ist "+st; ist.textContent=IDEA_ST[st]; loadIdeaBadge(); }catch(err){ toast("Impossible : "+err.message); } };
+      // Ouvrir une idée nouvelle la marque « lue »
+      if(st==="nouvelle"){ relay("/admin/idees/set",{method:"POST",body:{id:card.dataset.id, statut:"lue"}}).then(()=>{ st="lue"; const ist=card.querySelector(".ist"); ist.className="ist lue"; ist.textContent=IDEA_ST.lue; card.querySelectorAll("[data-s]").forEach(x=>x.setAttribute("aria-pressed", x.dataset.s==="lue")); loadIdeaBadge(); }).catch(()=>{}); }
+    });
+  }catch(e){ $("#m-body").innerHTML=`<div class="co-sub">${esc(e.message)}</div>`; }
+}
+async function loadIdeaBadge(){
+  const btn=$("#btn-all-ideas"), bd=$("#set-badge");
+  if(!odooAuth?.admin){ if(btn) btn.hidden=true; if(bd) bd.hidden=true; return; }
+  if(btn) btn.hidden=false;
+  try{ const j=await relay("/admin/idees?count=1"); const n=j.nouvelles||0; bd.hidden=!n; bd.textContent=n; if(btn) btn.textContent = n ? `Idées reçues (${n} nouvelle${n>1?"s":""})` : "Idées reçues"; }catch(e){}
+}
+
 /* ---------- Navigation & évènements ---------- */
 function setTab(t){
   document.querySelectorAll("#tabbar button").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===t));
@@ -2179,6 +2490,11 @@ $("#btn-refresh").onclick=()=>search();
 $("#btn-more").onclick=()=>search(true);
 $("#btn-locate").onclick=()=>{ const had=!!anchor; clearAnchor(); if(pos){ map.setView([pos.lat,pos.lng], zoomFor(settings.radius)); if(had) search(); } else toast("Position GPS en attente…"); };
 $("#btn-list").onclick=openNearbyList;
+$("#btn-here").onclick=searchHere;
+$("#btn-cafe").onclick=toggleCafes;
+$("#btn-idea").onclick=openIdeaForm;
+$("#btn-my-ideas").onclick=openMyIdeas;
+$("#btn-all-ideas").onclick=openAllIdeas;
 $("#btn-legend").onclick=openLegend;
 $("#btn-search").onclick=()=>openSearch();
 $("#visit-q").oninput=renderVisits;
@@ -2196,7 +2512,7 @@ $("#btn-share-old").onclick=shareOldVisits;
 $("#btn-backup").onclick=exportBackup;
 $("#restore-file").onchange=e=>{ const f=e.target.files[0]; if(f) importBackup(f); e.target.value=""; };
 setTimeout(()=>{ const h=$("#hint"); if(h) h.hidden=true; }, 7000);
-window.addEventListener("online",()=>toast("Connexion rétablie"));
+window.addEventListener("online",()=>{ toast("Connexion rétablie"); flushIdeas(); });
 window.addEventListener("offline",()=>toast("Hors ligne : les visites restent enregistrées sur l'iPhone"));
 
 /* ---------- Démarrage ---------- */
@@ -2204,8 +2520,9 @@ window.addEventListener("offline",()=>toast("Hors ligne : les visites restent en
   if(IS_TEST){ document.body.insertAdjacentHTML("beforeend",`<div class="testband">TEST · ${VERSION}</div>`); document.title="Prospection TEST"; }
   initMap(); renderRadius(); renderSector();
   await loadVisits(); refreshAll();
-  if(!odooAuth) showLogin(); else { odooRefreshStatus(); odooCheckSession(); flushOutbox(); loadRappels(); loadEtiquettes(); sharedRefresh(true); }
-  renderOutbox();
+  if(!odooAuth) showLogin(); else { odooRefreshStatus(); odooCheckSession(); flushOutbox(); loadRappels(); loadEtiquettes(); sharedRefresh(true); flushIdeas(); }
+  renderOutbox(); saveIdeasPending();
+  $("#btn-cafe").classList.toggle("on", !!settings.cafes);
   startGeoloc();
   try{ navigator.storage?.persist?.(); }catch(e){}
   if("serviceWorker" in navigator && location.protocol==="https:") navigator.serviceWorker.register("sw.js").catch(()=>{});

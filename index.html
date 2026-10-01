@@ -430,7 +430,7 @@ details.equip[open]{padding-bottom:14px}
    - Carte : Leaflet + OpenStreetMap
    - Stockage : IndexedDB sur l'appareil (aucun serveur)
    ===================================================================== */
-const VERSION = "2.8.0";
+const VERSION = "2.9.1";
 /* Environnement : l'app servie dans un dossier /test/ parle au relais de test et garde ses propres données */
 const IS_TEST = /\/test\//.test(location.pathname);
 /** Stockage local : en test, toutes les clés sont préfixées (même site que la prod) */
@@ -470,21 +470,28 @@ async function loadEtiquettes(){
   try{ const j=await relay("/odoo/etiquettes"); const t=(j.etiquettes||[]).map(x=>x.name).filter(Boolean); if(t.length){ ODOO_TAGS=t; LS.setItem("etiquettes", JSON.stringify(t)); } }catch(e){}
 }
 /** Cible d'une entreprise : étiquette de la fiche Odoo si elle existe, sinon dernière visite qui en porte une */
-function odooCible(c){
-  const st = odooCache.map[statusKey(c)]; if(!st || !st.partners?.length || !Array.isArray(st.etiquettes)) return null;
-  for(const x of CIBLES) if(st.etiquettes.some(t=>nrmTag(t)===nrmTag(x.tag))) return x.k;
+/* Plusieurs fiches Odoo au même SIREN : la fiche choisie (pIdx) fait foi ; sur la carte, la cible la plus
+   favorable l'emporte (Compte stratégique > PME > Hors cible) pour ne jamais masquer une cible en point noir */
+const CIBLE_PRIO = ["strategique","pme","horscible"];
+function odooCible(c, pIdx){
+  const st = odooCache.map[statusKey(c)]; if(!st || !st.partners?.length) return null;
+  const p = pIdx!=null ? st.partners[pIdx] : null;
+  const et = p && Array.isArray(p.etiquettes) ? p.etiquettes : (Array.isArray(st.etiquettes) ? st.etiquettes : null);
+  if(!et) return null;
+  for(const k of CIBLE_PRIO) if(et.some(t=>nrmTag(t)===nrmTag(cibleLabel(k)))) return k;
   return "";
 }
-function cibleOf(c, lv){
-  const o = odooCible(c); if(o) return o;
+function cibleOf(c, lv, pIdx){
+  const o = odooCible(c, pIdx); if(o) return o;
   if(lv?.cible) return lv.cible;
   const v=visitsFor(keyOf(c)).find(x=>x.cible); return v ? v.cible : "";
 }
 /** Met à jour l'étiquette de cible dans le cache Odoo du téléphone (la cible remplace les deux autres) */
-function cacheCible(key, cible){
+function cacheCible(key, cible, pid){
   const st = odooCache.map[key]; if(!st) return;
   const cibleTags = CIBLES.map(x=>nrmTag(x.tag));
   st.etiquettes = [...(st.etiquettes||[]).filter(t=>!cibleTags.includes(nrmTag(t))), cibleLabel(cible)];
+  for(const p of st.partners||[]) if(p.id===pid && Array.isArray(p.etiquettes)) p.etiquettes=[...p.etiquettes.filter(t=>!cibleTags.includes(nrmTag(t))), cibleLabel(cible)];
   saveOdooCache();
 }
 const RADII = [100,300,500,1000,2000,5000];
@@ -1178,7 +1185,7 @@ function openVisitForm(c, existing){
   const v = existing ? {...existing} : {
     id:uid(), key:c.key||c.siret, siret:c.siret||"", siren:c.siren||"", name:c.name||"", address:c.address||"", lat:c.lat, lng:c.lng,
     naf:c.naf||"", nafLabel:nafLabel(c.naf), forme:formeLabel(c.forme), effectif:EFFECTIFS[c.effectifUl]||"", dirigeant:c.dirigeants?.[0]?`${c.dirigeants[0].who} (${c.dirigeants[0].role})`:"",
-    manual:!!c.manual, date:new Date().toISOString(), status:"", contactName:"", contactRole:"", contactPhone:"", contactEmail:"", solutions:[], notes:"", callbackDate:"", rdvStart:"", rdvDuree:1, cible:cibleOf(c),
+    manual:!!c.manual, date:new Date().toISOString(), status:"", contactName:"", contactRole:"", contactPhone:"", contactEmail:"", solutions:[], notes:"", callbackDate:"", rdvStart:"", rdvDuree:1, cible:cibleOf(c, null, F && keyOf(F.c)===keyOf(c) ? (F.pIdx||0) : 0),
     equip: JSON.parse(JSON.stringify(equipOfC(c) || {}))  // reprise de l'équipement connu (partagé, sinon téléphone)
   };
   v.equip = normEquip(v.equip);
@@ -1252,6 +1259,7 @@ function openVisitForm(c, existing){
       if(!j.results.length){ res.innerHTML=`Aucune fiche Odoo trouvée.`; if(cb) cb.checked=true; return; }
       if(cb) cb.checked=false;
       res.innerHTML=j.results.slice(0,6).map((r,i)=>`<div class="opp" style="border-color:var(${CAT_VAR[r.status==="connu"?"prospect":r.status]});margin-top:6px"><b>${esc(r.name)}</b><div class="m">${esc([r.street,r.zip,r.city].filter(Boolean).join(" "))}${r.opps?" · "+r.opps+" opportunité"+(r.opps>1?"s":""):""}${r.status==="client"?" · client":""}</div><button type="button" class="btn sm" style="margin-top:4px" data-od="${i}">Rattacher</button></div>`).join("");
+      const sameI = !manual && sirenOf(c) ? j.results.slice(0,6).findIndex(r=>sirenDigits(r.siret)===sirenOf(c)) : -1;
       res.querySelectorAll("[data-od]").forEach(b=>b.onclick=async()=>{ const r=j.results[+b.dataset.od];
         if(!manual){ // entreprise de la base publique : rattachement immédiat (SIRET écrit dans Odoo)
           try{ const x=await relay("/odoo/rattacher",{method:"POST",body:{partner_id:r.id, siret:c.siret}}); if(x.conflit){ toast(x.message); return; }
@@ -1263,6 +1271,7 @@ function openVisitForm(c, existing){
         if(manual && !$("#v-siret").value.trim() && r.siret) $("#v-siret").value=String(r.siret).replace(/\D/g,"");
         const cb=$("#v-od-create"); if(cb){ cb.checked=false; cb.closest("label").hidden=true; }
         drawOdLink(); toast("Rattachée : "+r.name); });
+      if(sameI>=0) res.querySelector(`[data-od="${sameI}"]`)?.click();   // même SIREN : rattachement direct
     }catch(e){ if(my===odSeq) res.innerHTML=`<span class="err">${esc(e.message)}</span>`; }
   }
   const gb=$("#v-grp-btn"); if(gb) gb.onclick=()=>{ gb.hidden=true; groupPicker($("#v-grp"), c||v, ()=>{ $("#v-grp").innerHTML='<div class="co-sub">Groupe enregistré.</div>'; }); };
@@ -1675,11 +1684,13 @@ function renderAttach(c, box, badge, text){
       const j=await relay("/odoo/search",{method:"POST",body:{q, dept:deptOf(c)}});
       if(!j.results.length){ out.innerHTML=`<div class="co-sub">Aucune fiche Odoo trouvée.</div><div id="att-form"></div>`; createForm(c, $("#att-form")); return; }
       out.innerHTML = j.results.map((r,i)=>`<div class="opp" style="border-color:var(${CAT_VAR[r.status==="connu"?"prospect":r.status]})"><b>${esc(r.name)}</b>
-        <div class="m">${esc([r.zip,r.city].filter(Boolean).join(" "))}${r.agence?" · "+esc(r.agence):""}${r.siret?" · SIREN "+esc(String(r.siret).slice(0,9)):""}${r.opps?" · "+r.opps+" opportunité"+(r.opps>1?"s":""):""}</div>
+        <div class="m">${esc([r.zip,r.city].filter(Boolean).join(" "))}${r.agence?" · "+esc(r.agence):""}${r.siret?" · SIREN "+esc(sirenDigits(r.siret)):""}${r.opps?" · "+r.opps+" opportunité"+(r.opps>1?"s":""):""}${sirenDigits(r.siret)&&sirenDigits(r.siret)===sirenOf(c)?' · <b style="color:var(--od-client)">même SIREN</b>':""}</div>
         <div class="row" style="margin-top:6px"><span class="od ${r.status}">${esc(OD_LABEL[r.status]||r.status)}</span><button class="btn sm" data-att="${i}">C'est celle-ci</button><a class="btn ghost sm" href="${esc(r.url)}" target="_blank" rel="noopener">Voir</a></div></div>`).join("")
         + `<button type="button" class="btn ghost sm" id="att-new" style="margin-top:8px">Pas dans la liste : créer la fiche dans Odoo</button><div id="att-form"></div>`;
       $("#att-new").onclick=()=>createForm(c, $("#att-form"));
       out.querySelectorAll("[data-att]").forEach(b=>b.onclick=()=>attach(c, j.results[+b.dataset.att], box));
+      const same = !c.manual && sirenOf(c) && j.results.find(r=>sirenDigits(r.siret)===sirenOf(c));
+      if(same) attach(c, same, box, true);
     }catch(e){ out.innerHTML=`<div class="err">${esc(e.message)}</div>`; }
   };
   $("#att-go").onclick=go; $("#att-q").addEventListener("keydown",e=>{ if(e.key==="Enter") go(); });
@@ -1729,23 +1740,24 @@ function createForm(c, box){
 }
 
 function deptOf(c){ const m=String(c.address||"").match(/\b(97[1-4])\d{2}\b/); return m?m[1]:(settings.dept||""); }
-async function attach(c, r, box){
+const sirenDigits = x => String(x||"").replace(/\D/g,"").slice(0,9);
+async function attach(c, r, box, auto=false){
   const siret = String(c.siret||"").replace(/\D/g,"");
   const odooSiren = String(r.siret||"").replace(/\D/g,"").slice(0,9);
   if(siret && odooSiren && odooSiren!==siret.slice(0,9) && !c.manual){
     toast("Cette fiche Odoo porte déjà un autre SIREN ("+odooSiren+") : rattachement refusé"); return;
   }
-  if(!await confirmBox(`Rattacher « ${c.name} » à la fiche Odoo « ${r.name} » ?`, "Rattacher")) return;
+  if(!auto && !await confirmBox(`Rattacher « ${c.name} » à la fiche Odoo « ${r.name} » ?${siret&&!odooSiren?" Le SIRET sera écrit dans la fiche Odoo.":""}`, "Rattacher", false)) return;
   try{
     let siren = odooSiren;
-    if(siret && !odooSiren){
+    if(siret){   // écrit le SIRET (fiche vide) ou confirme le même SIREN ; met à jour l'index du relais dans les deux cas
       const j = await relay("/odoo/rattacher",{method:"POST",body:{partner_id:r.id, siret}});
       if(j.conflit){ toast(j.message); return; }
       siren = j.siren;
     }
     if(c.manual){ odooLinks[c.key] = {id:r.id, name:r.name, siren: siren||""}; saveLinks(); }
     const k = siren || ("id:"+r.id); delete odooCache.map[k]; saveOdooCache();
-    toast("Rattachée à Odoo : "+r.name);
+    toast(auto ? "Même SIREN dans Odoo : rattachée à "+r.name : "Rattachée à Odoo : "+r.name);
     await odooRefreshStatus(); renderOdooBlock(c); drawMarkers();
     offerCatchup(c, r.id);
   }catch(e){ toast("Rattachement impossible : "+e.message); }
@@ -1832,7 +1844,7 @@ async function flushOutbox(){
         toast("Fiche créée dans Odoo : "+(r.created?.name||p.name)); odooRefreshStatus();
         setTimeout(()=>offerCatchup(companyFromVisit(p), r.partner_id), 2800);
       }
-      if(p.cible && r.partner_id && r.steps?.cible){ cacheCible(p.siren||"", p.cible); cacheCible("id:"+r.partner_id, p.cible); }
+      if(p.cible && r.partner_id && r.steps?.cible){ cacheCible(p.siren||"", p.cible, r.partner_id); cacheCible("id:"+r.partner_id, p.cible, r.partner_id); }
       if(r.erreurs?.length) toast("Visite enregistrée, mais Odoo : "+r.erreurs[0]);
       else if(!p.noOdoo) toast(r.odoo ? "Visite envoyée dans Odoo" : "Visite partagée (entreprise non rattachée à Odoo)");
       sharedLast.set(p.key, {key:p.key, siren:p.siren, name:p.name, lat:p.lat, lng:p.lng, author:odooAuth.name, date:p.date, status:p.status, cible:p.cible||"", shared:true, manual:String(p.key).startsWith("manual_")});
@@ -1910,7 +1922,7 @@ function openFiche(c, tab){
 /** Cible de l'entreprise (fiche) : visible d'emblée, modifiable avec confirmation si la fiche Odoo existe */
 function drawCible(){
   const el=$("#fi-cible"); if(!el||!F) return; const c=F.c;
-  const cur=cibleOf(c, lastVisitMap().get(keyOf(c))), pid=F.st?.partners?.[F.pIdx||0]?.id;
+  const cur=cibleOf(c, lastVisitMap().get(keyOf(c)), F.pIdx||0), pid=F.st?.partners?.[F.pIdx||0]?.id;
   el.innerHTML=`<div class="stchips sm" id="fi-cible-b">${CIBLES.map(x=>`<button type="button" data-c="${x.k}" aria-pressed="${cur===x.k}"><i></i>${esc(x.tag)}</button>`).join("")}</div>
     ${!cur?`<div class="co-sub" style="margin-top:4px">Cible non renseignée</div>`:""}`;
   $("#fi-cible-b").onclick=async e=>{ const b=e.target.closest("button"); if(!b || b.dataset.c===cur) return;
@@ -1918,7 +1930,7 @@ function drawCible(){
     if(!navigator.onLine){ toast("Hors ligne : modification impossible"); return; }
     if(!await confirmBox(cur?`Passer « ${c.name} » de « ${cibleLabel(cur)} » à « ${cibleLabel(b.dataset.c)} » ? L'étiquette sera remplacée dans Odoo.`:`Classer « ${c.name} » en « ${cibleLabel(b.dataset.c)} » ? L'étiquette sera ajoutée dans Odoo.`, "Confirmer", false)) return;
     try{ const j=await relay("/odoo/cible",{method:"POST",body:{partner_id:pid, cible:b.dataset.c}});
-      const st=odooCache.map[statusKey(c)]; if(st){ st.etiquettes=j.etiquettes||[]; saveOdooCache(); }
+      const st=odooCache.map[statusKey(c)]; if(st){ const pp=(st.partners||[]).find(x=>x.id===pid); if(pp) pp.etiquettes=j.etiquettes||[]; st.etiquettes=[...new Set((st.partners||[]).flatMap(x=>x.etiquettes||[]))]; if(!pp) st.etiquettes=j.etiquettes||[]; saveOdooCache(); }
       F.detail=null; toast("Cible : "+cibleLabel(b.dataset.c)); drawCible(); drawMarkers();
       const dot=$("#sheet-body .co-name .od-dot"); if(dot) dot.style.background=`var(${CAT_VAR[markerCat(c,lastVisitMap().get(keyOf(c)))]})`;
     }catch(err){ toast("Modification impossible : "+err.message); } };
@@ -1928,7 +1940,7 @@ async function loadOdooForFiche(){
   const c=F.c; if(!odooAuth) return;
   const key=statusKey(c); if(!key){ F.st={status:"inconnu"}; return; }
   let st=odooCache.map[key];
-  if((!st || Date.now()-st.at>ODOO_TTL) && navigator.onLine){
+  if((!st || st.status==="inconnu" || Date.now()-st.at>ODOO_TTL) && navigator.onLine){
     try{
       if(key.startsWith("id:")){ const id=+key.slice(3); const j=await relay("/odoo/status",{method:"POST",body:{ids:[id]}}); st=odooCache.map[key]={...(j.results?.[id]||{status:"connu",partners:[]}),at:Date.now()}; }
       else { const j=await relay("/odoo/lookup",{method:"POST",body:{sirens:[key]}}); const r=j.results?.[key]; st=odooCache.map[key]=r?{...r,at:Date.now()}:{status:"inconnu",at:Date.now()}; }

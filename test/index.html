@@ -332,7 +332,7 @@ details.equip[open]{padding-bottom:14px}
       <button class="here" id="btn-here" hidden><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Rechercher dans cette zone</button>
     </div>
     <div class="fabs">
-      <button class="iconbtn fab" id="btn-cafe" aria-label="Cafés et bars à proximité"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h12v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M8 3c0 1.5 1 1.5 1 3M12 3c0 1.5 1 1.5 1 3"/></svg></button>
+      <button class="iconbtn fab" id="btn-cafe" aria-label="Cafés, snacks et stations-service à proximité"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h12v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M8 3c0 1.5 1 1.5 1 3M12 3c0 1.5 1 1.5 1 3"/></svg></button>
       <button class="iconbtn fab" id="btn-legend" aria-label="Légende et filtres"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 5h16l-6 7v6l-4 2v-8z"/></svg></button>
       <button class="iconbtn fab" id="btn-list" aria-label="Liste des entreprises proches"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
       <button class="iconbtn fab" id="btn-search" aria-label="Rechercher une entreprise"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
@@ -453,7 +453,7 @@ details.equip[open]{padding-bottom:14px}
    - Carte : Leaflet + OpenStreetMap
    - Stockage : IndexedDB sur l'appareil (aucun serveur)
    ===================================================================== */
-const VERSION = "2.10.0";
+const VERSION = "2.10.1";
 /* Environnement : l'app servie dans un dossier /test/ parle au relais de test et garde ses propres données */
 const IS_TEST = /\/test\//.test(location.pathname);
 /** Stockage local : en test, toutes les clés sont préfixées (même site que la prod) */
@@ -658,8 +658,9 @@ function normalize(ul, et){
 const EFF_BUCKETS = [["nc","0 ou non renseigné"],["1-9","1 à 9"],["10-49","10 à 49"],["50+","50 et plus"]];
 function effBucket(code){ code=code||""; if(!code||code==="NN"||code==="00") return "nc"; if(["01","02","03"].includes(code)) return "1-9"; if(["11","12"].includes(code)) return "10-49"; return "50+"; }
 const FORME_FAMS = [["com","Sociétés commerciales"],["inst","Institutionnel"],["autre","Autres"]];
-const FORME_HELP = {com:"SARL, EURL, SAS, SASU, SA, SNC, SEL…", inst:"Public, EPIC, organismes privés spécialisés (mutuelles, caisses…)", autre:"Entrepreneurs individuels, SCI, sociétés civiles, associations…"};
-function formeFam(code){ const d=String(code||"")[0]; return d==="5" ? "com" : (d==="4"||d==="7"||d==="8") ? "inst" : "autre"; }
+const FORME_HELP = {com:"SARL, EURL, SAS, SASU, SA, SEL…", inst:"Public, EPIC, organismes privés spécialisés (mutuelles, caisses…)", autre:"Entrepreneurs individuels, SNC, SCI, sociétés civiles, associations…"};
+function formeFam(code){ code=String(code||""); const d=code[0]; if(code.startsWith("52")) return "autre";   // SNC → Autres (décision 01/10)
+  return d==="5" ? "com" : (d==="4"||d==="7"||d==="8") ? "inst" : "autre"; }
 /** 10 salariés ou plus (affichés en priorité sur la carte) */
 const bigCo = c => ["11","12","21","22","31","32","41","42","51","52","53"].includes(c.effectifUl||"");
 const effRank = c => { const o=Object.keys(EFFECTIFS); const i=o.indexOf(c.effectifUl||"NN"); return i<0?0:i; };
@@ -2311,10 +2312,41 @@ async function goTo(lat, lng, name){
   window.open(NAV_APPS[k].url(lat, lng), "_blank", "noopener");
 }
 
-/* ---------- 2.10 : cafés et bars pour une pause / un debrief (OpenStreetMap, API Overpass) ---------- */
+/* ---------- 2.10 : pauses (cafés, bars, snacks) et stations-service — OpenStreetMap, API Overpass ---------- */
 const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
 const cafeCache = new Map(); let cafes = [], cafeSeq = 0;
-const cafeIcon = L.divIcon({className:"", iconSize:[28,28], iconAnchor:[14,14], html:`<svg width="28" height="28" viewBox="0 0 28 28" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,.45))"><circle cx="14" cy="14" r="12.5" fill="#7c4a26" stroke="#fff" stroke-width="2"/><path d="M8.2 11.5h9v3.3a3.6 3.6 0 0 1-3.6 3.6h-1.8a3.6 3.6 0 0 1-3.6-3.6z" fill="#fff"/><path d="M17.2 12.3h1.1a1.8 1.8 0 0 1 0 3.6h-1.3" fill="none" stroke="#fff" stroke-width="1.4"/><path d="M11 7.5c0 1 .7 1 .7 2.1M14 7.5c0 1 .7 1 .7 2.1" fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/><path d="M8 20h10" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg>`});
+const POI_KINDS = {
+  cafe:{label:"Café", emoji:"☕", col:"#7c4a26", z:600, svg:`<path d="M8.2 11.5h9v3.3a3.6 3.6 0 0 1-3.6 3.6h-1.8a3.6 3.6 0 0 1-3.6-3.6z" fill="#fff"/><path d="M17.2 12.3h1.1a1.8 1.8 0 0 1 0 3.6h-1.3" fill="none" stroke="#fff" stroke-width="1.4"/><path d="M11 7.5c0 1 .7 1 .7 2.1M14 7.5c0 1 .7 1 .7 2.1" fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/><path d="M8 20h10" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>`},
+  bar:{label:"Bar", emoji:"☕", col:"#7c4a26", z:600},
+  snack:{label:"Snack", emoji:"🥪", col:"#c2410c", z:600, svg:`<path d="M7.5 13a6.5 4.6 0 0 1 13 0z" fill="#fff"/><rect x="7" y="14.3" width="14" height="2" rx="1" fill="#fff"/><path d="M7.5 17.8h13a2.2 2.2 0 0 1-2.2 2.2h-8.6a2.2 2.2 0 0 1-2.2-2.2z" fill="#fff"/>`},
+  fuel:{label:"Station-service", emoji:"⛽", col:"#1d4ed8", z:600, svg:`<rect x="8" y="7.5" width="8" height="13" rx="1.3" fill="#fff"/><rect x="9.6" y="9.2" width="4.8" height="3.4" rx=".6" fill="#1d4ed8"/><path d="M16 11.5h1.6a1.2 1.2 0 0 1 1.2 1.2v4.5a1.1 1.1 0 0 0 2.2 0v-6.5l-2-2" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>`}};
+POI_KINDS.bar.svg = POI_KINDS.cafe.svg;
+const poiIcons = {};
+function poiIcon(k){ const p=POI_KINDS[k]||POI_KINDS.cafe; return poiIcons[k] ||= L.divIcon({className:"", iconSize:[28,28], iconAnchor:[14,14], html:`<svg width="28" height="28" viewBox="0 0 28 28" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,.45))"><circle cx="14" cy="14" r="12.5" fill="${p.col}" stroke="#fff" stroke-width="2"/>${p.svg}</svg>`}); }
+/** Snacks : fast_food dans OSM (ou cuisine/nom « snack ») */
+function poiKind(t){ if(t.amenity==="fuel") return "fuel"; if(t.amenity==="fast_food" || /snack/i.test((t.name||"")+" "+(t.cuisine||""))) return "snack"; return t.amenity==="bar" ? "bar" : "cafe"; }
+
+/* Horaires OSM (« Mo-Fr 07:00-18:00; Sa 08:00-12:00 ») : affichage en français et ouvert / fermé maintenant (cas simples) */
+const OH_D = ["Mo","Tu","We","Th","Fr","Sa","Su"], OH_FR = {Mo:"lun",Tu:"mar",We:"mer",Th:"jeu",Fr:"ven",Sa:"sam",Su:"dim",PH:"fériés",off:"fermé"};
+function ohFr(oh){ return String(oh).replace(/\b(Mo|Tu|We|Th|Fr|Sa|Su|PH|off)\b/g, m=>OH_FR[m]).replace(/24\/7/,"24 h/24, 7 j/7").replace(/;\s*/g," · ").replace(/:00\b/g," h").replace(/(\d{2}):(\d{2})/g,"$1 h $2"); }
+function ohOpenNow(oh, now=new Date()){
+  oh=String(oh||"").trim(); if(!oh) return null; if(oh==="24/7") return true;
+  const day=(now.getDay()+6)%7, min=now.getHours()*60+now.getMinutes();
+  let res=null, understood=false;
+  for(const rule of oh.split(";").map(x=>x.trim()).filter(Boolean)){
+    const m=rule.match(/^((?:(?:Mo|Tu|We|Th|Fr|Sa|Su)(?:-(?:Mo|Tu|We|Th|Fr|Sa|Su))?,?)+)?\s*(.*)$/); if(!m) return null;
+    const daysStr=m[1], times=m[2].trim();
+    let days=[0,1,2,3,4,5,6];
+    if(daysStr){ days=[]; for(const part of daysStr.split(",").filter(Boolean)){ const [a,b]=part.split("-"); const i=OH_D.indexOf(a), j=b?OH_D.indexOf(b):i; if(i<0||j<0) return null; for(let k=i;;k=(k+1)%7){ days.push(k); if(k===j) break; } } }
+    if(!days.includes(day)) { understood=true; continue; }
+    if(times==="off"||times==="closed"){ res=false; understood=true; continue; }
+    const tr=[...times.matchAll(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/g)]; if(!tr.length) return null;
+    res = tr.some(x=>{ const a=+x[1]*60+ +x[2], b=+x[3]*60+ +x[4]; return b>a ? (min>=a&&min<b) : (min>=a||min<b); });
+    understood=true;
+  }
+  return understood ? (res ?? false) : null;
+}
+
 async function loadCafes(){
   const ctr = searchCenter || currentCenter() || (map && map.getCenter());
   if(!ctr || !navigator.onLine) return;
@@ -2323,46 +2355,51 @@ async function loadCafes(){
   const my = ++cafeSeq;
   let list = cafeCache.get(ck);
   if(!list){
-    const q = `[out:json][timeout:20];(nwr["amenity"~"^(cafe|bar)$"](around:${Math.round(r)},${ctr.lat.toFixed(6)},${ctr.lng.toFixed(6)}););out center 150;`;
+    const q = `[out:json][timeout:25];(nwr["amenity"~"^(cafe|bar|fast_food|fuel)$"](around:${Math.round(r)},${ctr.lat.toFixed(6)},${ctr.lng.toFixed(6)}););out center 300;`;
     for(const url of OVERPASS){
       try{
         const res = await fetch(url, {method:"POST", body:"data="+encodeURIComponent(q), headers:{"Content-Type":"application/x-www-form-urlencoded"}});
         if(!res.ok) continue;
         const j = await res.json();
-        list = (j.elements||[]).map(e=>({id:e.type+e.id, lat:e.lat??e.center?.lat, lng:e.lon??e.center?.lon, t:e.tags||{}})).filter(x=>x.lat&&x.lng);
+        list = (j.elements||[]).map(e=>({id:e.type+e.id, lat:e.lat??e.center?.lat, lng:e.lon??e.center?.lon, t:e.tags||{}})).filter(x=>x.lat&&x.lng).map(x=>({...x, k:poiKind(x.t)}));
         cafeCache.set(ck, list); break;
       }catch(e){}
     }
-    if(!list){ if(my===cafeSeq) toast("Cafés indisponibles pour le moment"); return; }
+    if(!list){ if(my===cafeSeq) toast("Pauses et stations indisponibles pour le moment"); return; }
   }
   if(my!==cafeSeq || !settings.cafes) return;
   cafes = list; drawCafes();
-  if(!list.length) toast("Aucun café ou bar référencé dans OpenStreetMap ici");
+  if(!list.length) toast("Aucun café, snack ou station référencé dans OpenStreetMap ici");
 }
 function drawCafes(){
   cafeLayer.clearLayers(); if(!settings.cafes) return;
   for(const x of cafes){
-    const m = L.marker([x.lat,x.lng],{icon:cafeIcon, zIndexOffset:-200, title:x.t.name||"Café"});
+    const p=POI_KINDS[x.k]||POI_KINDS.cafe;
+    const m = L.marker([x.lat,x.lng],{icon:poiIcon(x.k), zIndexOffset:p.z, title:x.t.name||p.label});
     m.on("click",()=>openCafe(x)); cafeLayer.addLayer(m);
   }
 }
 function openCafe(x){
-  const t=x.t, kind = t.amenity==="bar" ? "Bar" : "Café";
+  const t=x.t, p=POI_KINDS[x.k||poiKind(t)]||POI_KINDS.cafe, kind=p.label;
   const ref = pos || anchor || searchCenter; const d = ref ? distance(ref, x) : null;
   const addr = [[t["addr:housenumber"], t["addr:street"]].filter(Boolean).join(" "), t["addr:city"]].filter(Boolean).join(", ");
-  openSheet(`<div class="chips" style="margin-top:6px"><span class="tag">☕ ${kind}</span>${d!=null?`<span class="tag tabular">à ${fmtDist(d)}</span>`:""}</div>
-    <div class="co-name">${esc(t.name||kind+" sans nom")}</div>
+  const name = t.name || t.brand || kind+" sans nom";
+  const open = ohOpenNow(t.opening_hours);
+  const tel = t.phone||t["contact:phone"];
+  openSheet(`<div class="chips" style="margin-top:6px"><span class="tag">${p.emoji} ${esc(kind)}</span>${d!=null?`<span class="tag tabular">à ${fmtDist(d)}</span>`:""}${open===true?`<span class="tag" style="background:color-mix(in srgb,var(--od-client) 18%,var(--surface));color:var(--od-client)">Ouvert maintenant</span>`:open===false?`<span class="tag" style="color:var(--st-refused)">Fermé maintenant</span>`:""}</div>
+    <div class="co-name">${esc(name)}</div>
+    ${t.brand&&t.name&&t.brand!==t.name?`<div class="co-sub">${esc(t.brand)}</div>`:""}
     ${addr?`<div class="co-sub">${esc(addr)}</div>`:""}
-    ${t.opening_hours?`<div class="co-sub">Horaires : ${esc(t.opening_hours)}</div>`:""}
-    ${t.phone||t["contact:phone"]?`<div class="co-sub">Tél. : <a href="tel:${esc((t.phone||t["contact:phone"]).replace(/\s/g,""))}">${esc(t.phone||t["contact:phone"])}</a></div>`:""}
+    <div class="co-sub" style="margin-top:6px"><b>Horaires :</b> ${t.opening_hours?esc(ohFr(t.opening_hours)):"non renseignés"}</div>
+    ${tel?`<div class="co-sub">Tél. : <a href="tel:${esc(tel.replace(/\s/g,""))}">${esc(tel)}</a></div>`:""}
     <button class="btn block" id="cf-go" style="margin-top:12px">Y aller</button>
     <p class="co-sub" style="margin-top:10px">Source : OpenStreetMap. Informations parfois incomplètes.</p>`);
-  $("#cf-go").onclick=()=>goTo(x.lat, x.lng, t.name||kind);
+  $("#cf-go").onclick=()=>goTo(x.lat, x.lng, name);
 }
 function toggleCafes(){
   settings.cafes = !settings.cafes; saveSettings();
   $("#btn-cafe").classList.toggle("on", settings.cafes);
-  if(settings.cafes){ toast("Cafés et bars affichés"); loadCafes(); } else { cafeLayer.clearLayers(); toast("Cafés masqués"); }
+  if(settings.cafes){ toast("Cafés, snacks et stations affichés"); loadCafes(); } else { cafeLayer.clearLayers(); toast("Pauses et stations masquées"); }
 }
 
 /* ---------- 2.10 : boîte à idées (relais → table « idees », lue par Geoffrey dans l'app ou /admin) ---------- */

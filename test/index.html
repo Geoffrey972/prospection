@@ -150,6 +150,7 @@ a{color:var(--accent)}
 .st{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;border-radius:999px;padding:3px 10px;color:#fff;border:0}
 .st.interested{background:var(--st-interested)} .st.invite{background:var(--st-invite)} .st.horscible{background:var(--st-horscible)} .st.callback{background:var(--st-callback)} .st.refused{background:var(--st-refused)} .st.signed{background:var(--st-signed)}
 .stchips{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.stchips.sm button{min-height:38px;font-size:13px;border-width:1.5px}
 .stchips button{min-height:48px;padding:4px 6px;text-align:center;line-height:1.15;font-size:14px;border-radius:12px;border:2px solid var(--line);background:var(--surface);font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px}
 .stchips button i{width:10px;height:10px;border-radius:50%}
 .stchips button[aria-pressed="true"]{color:#fff;border-color:transparent}
@@ -421,7 +422,7 @@ details.equip[open]{padding-bottom:14px}
    - Carte : Leaflet + OpenStreetMap
    - Stockage : IndexedDB sur l'appareil (aucun serveur)
    ===================================================================== */
-const VERSION = "2.6.0";
+const VERSION = "2.7.0";
 /* Environnement : l'app servie dans un dossier /test/ parle au relais de test et garde ses propres données */
 const IS_TEST = /\/test\//.test(location.pathname);
 /** Stockage local : en test, toutes les clés sont préfixées (même site que la prod) */
@@ -460,13 +461,23 @@ async function loadEtiquettes(){
   if(!odooAuth || !navigator.onLine) return;
   try{ const j=await relay("/odoo/etiquettes"); const t=(j.etiquettes||[]).map(x=>x.name).filter(Boolean); if(t.length){ ODOO_TAGS=t; LS.setItem("etiquettes", JSON.stringify(t)); } }catch(e){}
 }
-/** Cible connue d'une entreprise : dernière visite qui en porte une, sinon étiquette Odoo de la fiche */
-function cibleOf(c, lv){
-  if(lv?.cible) return lv.cible;
-  const k=keyOf(c); const v=visitsFor(k).find(x=>x.cible); if(v) return v.cible;
-  const et = odooCache.map[statusKey(c)]?.etiquettes || [];
-  for(const x of CIBLES) if(et.some(t=>nrmTag(t)===nrmTag(x.tag))) return x.k;
+/** Cible d'une entreprise : étiquette de la fiche Odoo si elle existe, sinon dernière visite qui en porte une */
+function odooCible(c){
+  const st = odooCache.map[statusKey(c)]; if(!st || !st.partners?.length || !Array.isArray(st.etiquettes)) return null;
+  for(const x of CIBLES) if(st.etiquettes.some(t=>nrmTag(t)===nrmTag(x.tag))) return x.k;
   return "";
+}
+function cibleOf(c, lv){
+  const o = odooCible(c); if(o) return o;
+  if(lv?.cible) return lv.cible;
+  const v=visitsFor(keyOf(c)).find(x=>x.cible); return v ? v.cible : "";
+}
+/** Met à jour l'étiquette de cible dans le cache Odoo du téléphone (la cible remplace les deux autres) */
+function cacheCible(key, cible){
+  const st = odooCache.map[key]; if(!st) return;
+  const cibleTags = CIBLES.map(x=>nrmTag(x.tag));
+  st.etiquettes = [...(st.etiquettes||[]).filter(t=>!cibleTags.includes(nrmTag(t))), cibleLabel(cible)];
+  saveOdooCache();
 }
 const RADII = [100,300,500,1000,2000,5000];
 
@@ -1202,7 +1213,10 @@ function openVisitForm(c, existing){
       <button class="btn block" id="v-save">Enregistrer la visite</button>
     </div>`});
   $("#v-status").onclick=e=>{ const b=e.target.closest("button"); if(!b) return; v.status=b.dataset.s; $("#v-status").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b)); $("#v-cb-wrap").hidden=v.status!=="callback"; $("#v-rdv-wrap").hidden=v.status!=="invite"; $("#m-body").querySelectorAll(".req-inv").forEach(x=>x.hidden=v.status!=="invite"); $("#v-status-err").hidden=true; };
-  $("#v-cible").onclick=e=>{ const b=e.target.closest("button"); if(!b) return; v.cible=b.dataset.c; $("#v-cible").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  const cibleInit = v.cible;
+  $("#v-cible").onclick=async e=>{ const b=e.target.closest("button"); if(!b || b.dataset.c===v.cible) return;
+    if(cibleInit && b.dataset.c!==cibleInit && !await confirmBox(`Cette entreprise est « ${cibleLabel(cibleInit)} ». La passer en « ${cibleLabel(b.dataset.c)} » ?`, "Oui, changer la cible", false)) return;
+    v.cible=b.dataset.c; $("#v-cible").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));
     const hc=v.cible==="horscible"; $("#v-status-wrap").hidden=hc; $("#v-cible-info").hidden=!hc; $("#v-cible-err").hidden=true;
     if(hc){ $("#v-cb-wrap").hidden=true; $("#v-rdv-wrap").hidden=true; $("#m-body").querySelectorAll(".req-inv").forEach(x=>x.hidden=true); }
     else { if(v.status==="horscible") v.status=""; $("#v-status").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.s===v.status)); $("#v-cb-wrap").hidden=v.status!=="callback"; $("#v-rdv-wrap").hidden=v.status!=="invite"; $("#m-body").querySelectorAll(".req-inv").forEach(x=>x.hidden=v.status!=="invite"); }
@@ -1753,6 +1767,7 @@ async function flushOutbox(){
         toast("Fiche créée dans Odoo : "+(r.created?.name||p.name)); odooRefreshStatus();
         setTimeout(()=>offerCatchup(companyFromVisit(p), r.partner_id), 2800);
       }
+      if(p.cible && r.partner_id && r.steps?.cible){ cacheCible(p.siren||"", p.cible); cacheCible("id:"+r.partner_id, p.cible); }
       if(r.erreurs?.length) toast("Visite enregistrée, mais Odoo : "+r.erreurs[0]);
       else if(!p.noOdoo) toast(r.odoo ? "Visite envoyée dans Odoo" : "Visite partagée (entreprise non rattachée à Odoo)");
       sharedLast.set(p.key, {key:p.key, siren:p.siren, name:p.name, lat:p.lat, lng:p.lng, author:odooAuth.name, date:p.date, status:p.status, cible:p.cible||"", shared:true, manual:String(p.key).startsWith("manual_")});
@@ -1817,14 +1832,31 @@ function openFiche(c, tab){
     ${c.legalName&&c.legalName!==c.name?`<div class="co-sub">${esc(c.legalName)}</div>`:""}
     <div class="co-sub">${esc(c.address||"")}</div>
     <div id="fi-od" style="margin-top:6px"></div>
+    <div id="fi-cible" style="margin-top:8px"></div>
     ${lv?`<div class="co-sub" style="margin-top:6px"><span class="st ${lv.status}" style="font-size:11.5px;padding:2px 8px">${esc(stLabel(lv.status))}</span> Dernier passage le ${fmtDate(lv.date)}${lv.author?" par "+esc(lv.author):""}</div>`:""}
     <button class="btn block" id="fi-visit" style="margin-top:10px">Saisir une visite</button>
     <div class="etabs" id="fi-tabs" style="margin-top:12px">${TABS.map(([t,l])=>`<button type="button" data-t="${t}" aria-selected="${t===tab}">${l}</button>`).join("")}</div>
     <div id="fi-pane"></div>`);
   $("#fi-visit").onclick=()=>{ closeSheet(); openVisitForm(c.manual?companyFromVisit({...(hist[0]||{}), ...c, key:k, manual:true}):c); };
   $("#fi-tabs").onclick=e=>{ const b=e.target.closest("[data-t]"); if(!b) return; F.tab=b.dataset.t; $("#fi-tabs").querySelectorAll("button").forEach(x=>x.setAttribute("aria-selected",x===b)); drawPane(); };
-  loadOdooForFiche().then(()=>{ drawHeaderOdoo(); drawPane(); });
-  drawPane();
+  loadOdooForFiche().then(()=>{ drawHeaderOdoo(); drawCible(); drawPane(); });
+  drawCible(); drawPane();
+}
+/** Cible de l'entreprise (fiche) : visible d'emblée, modifiable avec confirmation si la fiche Odoo existe */
+function drawCible(){
+  const el=$("#fi-cible"); if(!el||!F) return; const c=F.c;
+  const cur=cibleOf(c, lastVisitMap().get(keyOf(c))), pid=F.st?.partners?.[F.pIdx||0]?.id;
+  el.innerHTML=`<div class="stchips sm" id="fi-cible-b">${CIBLES.map(x=>`<button type="button" data-c="${x.k}" aria-pressed="${cur===x.k}"><i></i>${esc(x.tag)}</button>`).join("")}</div>
+    ${!cur?`<div class="co-sub" style="margin-top:4px">Cible non renseignée</div>`:""}`;
+  $("#fi-cible-b").onclick=async e=>{ const b=e.target.closest("button"); if(!b || b.dataset.c===cur) return;
+    if(!odooAuth || !pid){ toast("Entreprise non rattachée à Odoo : la cible se choisit en saisissant une visite"); return; }
+    if(!navigator.onLine){ toast("Hors ligne : modification impossible"); return; }
+    if(!await confirmBox(cur?`Passer « ${c.name} » de « ${cibleLabel(cur)} » à « ${cibleLabel(b.dataset.c)} » ? L'étiquette sera remplacée dans Odoo.`:`Classer « ${c.name} » en « ${cibleLabel(b.dataset.c)} » ? L'étiquette sera ajoutée dans Odoo.`, "Confirmer", false)) return;
+    try{ const j=await relay("/odoo/cible",{method:"POST",body:{partner_id:pid, cible:b.dataset.c}});
+      const st=odooCache.map[statusKey(c)]; if(st){ st.etiquettes=j.etiquettes||[]; saveOdooCache(); }
+      F.detail=null; toast("Cible : "+cibleLabel(b.dataset.c)); drawCible(); drawMarkers();
+      const dot=$("#sheet-body .co-name .od-dot"); if(dot) dot.style.background=`var(${CAT_VAR[markerCat(c,lastVisitMap().get(keyOf(c)))]})`;
+    }catch(err){ toast("Modification impossible : "+err.message); } };
 }
 /** Statut Odoo de la fiche (cache, sinon relais) */
 async function loadOdooForFiche(){

@@ -20,7 +20,7 @@
   --accent:#0e4c52; --accent-ink:#ffffff; --accent-soft:#d6ebec; --coral:#e86f3e;
   --st-interested:#7b8794; --st-invite:#2563c9; --st-horscible:#1f2328; --st-callback:#d98a0b; --st-refused:#c93a32; --st-signed:#1f8f4e;
   --notes-bg:#fff6d6; --notes-line:#ecd98f;
-  --od-hors:#16181b; --od-client:#15803d; --od-opp:#ea7a0c; --od-qual:#eab308; --od-connu:#64808c; --od-inconnu:#c0352b;
+  --od-hors:#16181b; --od-client:#15803d; --od-opp:#2563eb; --od-pme:#f97316; --od-strat:#7c3aed; --od-qual:#eab308; --od-connu:#64808c; --od-inconnu:#c0352b;
   --shadow:0 6px 24px rgba(10,40,45,.16);
   color-scheme:light;
 }
@@ -156,8 +156,8 @@ a{color:var(--accent)}
 .stchips button[aria-pressed="true"]{color:#fff;border-color:transparent}
 .stchips [data-s="interested"] i,.stchips [data-s="interested"][aria-pressed="true"]{background:var(--st-interested)}
 .stchips [data-c="horscible"] i,.stchips [data-c="horscible"][aria-pressed="true"]{background:var(--od-hors)}
-.stchips [data-c="pme"] i,.stchips [data-c="pme"][aria-pressed="true"]{background:var(--accent)}
-.stchips [data-c="strategique"] i,.stchips [data-c="strategique"][aria-pressed="true"]{background:#7c3aed}
+.stchips [data-c="pme"] i,.stchips [data-c="pme"][aria-pressed="true"]{background:var(--od-pme)}
+.stchips [data-c="strategique"] i,.stchips [data-c="strategique"][aria-pressed="true"]{background:var(--od-strat)}
 .stchips [data-s="invite"] i,.stchips [data-s="invite"][aria-pressed="true"]{background:var(--st-invite)}
 .stchips [data-s="callback"] i,.stchips [data-s="callback"][aria-pressed="true"]{background:var(--st-callback)}
 .stchips [data-s="refused"] i,.stchips [data-s="refused"][aria-pressed="true"]{background:var(--st-refused)}
@@ -287,6 +287,10 @@ details.equip[open]{padding-bottom:14px}
 #login details{font-size:13.5px;color:var(--muted)}
 #login details summary{cursor:pointer;font-weight:600;color:var(--accent)}
 #login ol{padding-left:20px;margin:8px 0 0}
+.ctrow{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:11px 0;color:var(--ink);font:inherit}
+.ctrow .t{display:block;font-weight:700;font-size:15px}
+.ctrow .s{display:block;font-size:13px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
+.ctrow[aria-pressed="true"] .t::before{content:"✓ ";color:var(--accent)}
 .linkbtn{border:0;background:none;color:var(--accent);font-weight:600;padding:6px 0;text-align:left}
 /* ============ 2.10 : zone, regroupement, cafés, idées ============ */
 .here{align-self:center;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:13.5px;padding:9px 16px;box-shadow:var(--shadow);display:flex;align-items:center;gap:6px}
@@ -453,7 +457,7 @@ details.equip[open]{padding-bottom:14px}
    - Carte : Leaflet + OpenStreetMap
    - Stockage : IndexedDB sur l'appareil (aucun serveur)
    ===================================================================== */
-const VERSION = "2.10.1";
+const VERSION = "2.11.0";
 /* Environnement : l'app servie dans un dossier /test/ parle au relais de test et garde ses propres données */
 const IS_TEST = /\/test\//.test(location.pathname);
 /** Stockage local : en test, toutes les clés sont préfixées (même site que la prod) */
@@ -616,9 +620,13 @@ function lastVisitMap(){ const m=new Map(); for(const v of visits){ const cur=m.
 async function apiGet(path, params){
   const u = new URL(API+path);
   Object.entries(params).forEach(([k,v])=>{ if(v!==""&&v!=null) u.searchParams.set(k,v); });
-  for(let attempt=0; attempt<3; attempt++){
-    const r = await fetch(u, {headers:{Accept:"application/json"}});
-    if(r.status===429){ await sleep(1200*(attempt+1)); continue; }
+  // 2.10.2 : la limite de débit de l'API (≈ 7 appels/s) renvoie parfois une réponse sans en-tête CORS,
+  // que le navigateur présente comme « Failed to fetch » → même traitement qu'un 429 (attente puis nouvel essai)
+  for(let attempt=0; attempt<4; attempt++){
+    let r;
+    try{ r = await fetch(u, {headers:{Accept:"application/json"}}); }
+    catch(e){ if(!navigator.onLine) throw new Error("hors ligne"); await sleep(1500*(attempt+1)); continue; }
+    if(r.status===429 || r.status===503){ await sleep(1500*(attempt+1)); continue; }
     if(!r.ok) throw new Error("API "+r.status);
     return r.json();
   }
@@ -733,11 +741,15 @@ async function search(more=false){
         }
       }
       if(i%2===1 || i===pagesToLoad-1 || lastQuery.page>=lastQuery.totalPages) { drawMarkers(); odooRefreshStatus(); }
-      if(i<pagesToLoad-1) await sleep(180);
+      if(i<pagesToLoad-1) await sleep(400);   // ≈ 2,5 appels/s : sous la limite de l'API
     }
     try{ LS.setItem("lastSearch", JSON.stringify({q:lastQuery, items:[...companies.values()]})); }catch(e){}
     sharedRefresh(true); drawMarkers(); odooRefreshStatus(); updateHere(); if(settings.cafes) loadCafes();
-  }catch(e){ toast("Recherche impossible : "+e.message); drawMarkers(); }
+  }catch(e){
+    drawMarkers();
+    if(companies.size){ toast("Chargement interrompu : touchez +100 pour la suite"); $("#btn-more").hidden=false; try{ LS.setItem("lastSearch", JSON.stringify({q:lastQuery, items:[...companies.values()]})); }catch(err){} }
+    else toast("Recherche impossible ("+e.message+"), réessayez avec le bouton ↻");
+  }
   finally{ btn.classList.remove("spin"); prog.style.width="0"; setTimeout(()=>prog.style.width="0",300); }
 }
 
@@ -746,10 +758,11 @@ function flagIcon(status){
   return L.divIcon({className:"",iconSize:[26,30],iconAnchor:[4,29],html:`<svg class="flag" viewBox="0 0 26 30"><path d="M4 29V2" stroke="#fff" stroke-width="4" stroke-linecap="round"/><path d="M4 29V2" stroke="#12242a" stroke-width="2" stroke-linecap="round"/><path d="M5 3h17l-4 5 4 5H5z" fill="${col}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>`});
 }
 /* ---------- Marqueurs V2.1 : un rond coloré pour toutes les entreprises ----------
-   Vert = client · Orange = opportunité en cours · Jaune = prospect qualifié (visité + équipement renseigné)
+   2.11 : Vert = client · Bleu = opportunité en cours · Violet = Compte stratégique · Orange = PME · Noir = hors cible
+   Jaune = prospect qualifié (visité + équipement renseigné, sans cible)
    Rouge = prospect (non rattaché / sans opportunité) · Gris = statut Odoo en cours de chargement
    Point blanc au centre = déjà visitée · Montre = un contrat se termine dans 6 mois ou moins */
-const CAT_VAR = {horscible:"--od-hors", client:"--od-client", opportunite:"--od-opp", qualifie:"--od-qual", prospect:"--od-inconnu", pending:"--od-connu"};
+const CAT_VAR = {horscible:"--od-hors", client:"--od-client", opportunite:"--od-opp", strategique:"--od-strat", pme:"--od-pme", qualifie:"--od-qual", prospect:"--od-inconnu", pending:"--od-connu"};
 const iconCache = {};
 /** Rond coloré ; big = 10 salariés ou plus (plus gros) ; n = entreprises empilées au même endroit (badge) */
 function markerIcon(cat, visited, clock, big=false, n=1){
@@ -780,7 +793,10 @@ function markerCat(c, lv){
   const od = odooState(c);
   if(od==="client") return "client";
   if(od==="opportunite") return "opportunite";
-  if(cibleOf(c, lv)==="horscible") return "horscible";
+  const cb = cibleOf(c, lv);
+  if(cb==="strategique") return "strategique";
+  if(cb==="pme") return "pme";
+  if(cb==="horscible") return "horscible";
   if(lv && hasEquip(keyOf(c))) return "qualifie";
   if(od==="pending") return "pending";
   return "prospect";
@@ -791,8 +807,8 @@ function markerCat(c, lv){
       Le point affiché est le plus important : client / opportunité, puis 10 salariés ou plus, puis le reste (hors cible en dernier).
    2. Au dézoom (zoom < CLUSTER_ZOOM), les points proches sont regroupés en bulles avec un nombre ; toucher = zoomer. */
 const CLUSTER_ZOOM = 16, CLUSTER_PX = 54;
-const CAT_RANK = {client:0, opportunite:1, qualifie:3, prospect:4, pending:4, horscible:6};
-function itemRank(x){ if(x.cat==="client"||x.cat==="opportunite") return CAT_RANK[x.cat]; if(x.cat==="horscible") return 6; return x.big ? 2 : CAT_RANK[x.cat] ?? 4; }
+const CAT_RANK = {client:0, opportunite:1, strategique:2, pme:2.5, qualifie:3, prospect:4, pending:4, horscible:6};
+function itemRank(x){ if(x.cat==="client"||x.cat==="opportunite") return CAT_RANK[x.cat]; if(x.cat==="horscible") return 6; const r = CAT_RANK[x.cat] ?? 4; return x.big ? 1.5 + r/10 : r; }   // ≥ 10 salariés juste après client / opportunité
 function sortItems(arr){ return arr.sort((a,b)=> itemRank(a)-itemRank(b) || effRank(b.c)-effRank(a.c) || (a.c.name||"").localeCompare(b.c.name||"")); }
 let mapItems = [];   // dernière liste affichée (piles)
 function drawMarkers(){
@@ -841,7 +857,7 @@ function drawMarkers(){
 }
 function addStackMarker(st){
   const top = st[0], c = top.c;
-  const zi = top.cat==="client"||top.cat==="opportunite" ? 400 : top.big ? 350 : top.cat==="qualifie" ? 300 : top.lv ? 200 : top.cat==="horscible" ? -50 : 0;
+  const zi = top.cat==="client"||top.cat==="opportunite" ? 400 : top.big ? 350 : top.cat==="strategique" ? 330 : top.cat==="pme" ? 310 : top.cat==="qualifie" ? 300 : top.lv ? 200 : top.cat==="horscible" ? -50 : 0;
   const m = L.marker([c.lat,c.lng],{icon: markerIcon(top.cat, !!top.lv, top.clock, top.big, st.length), zIndexOffset: zi + (st.length>1?20:0), title: st.length>1 ? `${c.name} et ${st.length-1} autre${st.length>2?"s":""}` : c.name});
   m.on("click",()=> st.length>1 ? openStack(st) : (c.manual ? openManual(c) : openCompany(c)));
   layer.addLayer(m);
@@ -1301,12 +1317,106 @@ function equipDetail(e){
     return `<dt>${f.label}</dt><dd>${val}</dd>`; }).join("")}</dl></div>`).join("")}</div></div>`;
 }
 
+/* ---------- 2.11 : catégories d'agenda Odoo pour les RDV (DEC par défaut) ---------- */
+let rdvCats = null;
+async function loadRdvCats(){
+  if(rdvCats && Date.now()-rdvCats.at < 6*3600e3) return rdvCats;
+  let c=null; try{ c=JSON.parse(LS.getItem("rdvCats")||"null"); }catch(e){}
+  if(c && Date.now()-c.at < 6*3600e3) return rdvCats=c;
+  if(odooAuth && navigator.onLine){
+    try{ const j=await relay("/odoo/rdv/categories"); c={categories:j.categories||[], defaut:j.defaut||null, at:Date.now()}; try{ LS.setItem("rdvCats", JSON.stringify(c)); }catch(e){} }
+    catch(e){ /* on garde le cache, même ancien */ }
+  }
+  return rdvCats = c || {categories:[], defaut:null, at:0};
+}
+const rdvCatField = (id) => `<label class="f">Catégorie d'agenda<select id="${id}"><option value="">${odooAuth?"Chargement…":"Catégorie par défaut (DEC)"}</option></select></label>`;
+/** Remplit la liste déroulante ; valeur "" = catégorie par défaut côté relais (DEC), "0" = sans catégorie */
+async function fillRdvCat(id, cur){
+  const c=await loadRdvCats(); const el=document.getElementById(id); if(!el) return;
+  const list=c.categories||[];
+  if(!list.length){ el.innerHTML=`<option value="">Catégorie par défaut (DEC)</option>`; return; }
+  const v=String(cur||c.defaut||"");
+  el.innerHTML=list.map(x=>`<option value="${x.id}" ${String(x.id)===v?"selected":""}>${esc(x.name)}</option>`).join("")+`<option value="0" ${v==="0"?"selected":""}>(sans catégorie)</option>`;
+}
+const rdvCatVal = (id) => { const x=document.getElementById(id)?.value; return x==="0" ? 0 : (+x||null); };
+
+/* ---------- 2.11 : contacts connus d'une entreprise (Odoo + visites) ---------- */
+const ctNorm = s => String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+/** Tous les contacts Odoo de la société + contacts saisis aux visites (sans doublon). Le premier = contact de la dernière visite. */
+async function knownContacts(c){
+  const out=[], byName=new Map();
+  const add = (x, src) => {
+    const name=String(x.name||"").trim(); if(!name) return;
+    const k=ctNorm(name); let e=byName.get(k);
+    if(!e && x.email) e=out.find(o=>o.email && o.email.toLowerCase()===String(x.email).toLowerCase());
+    if(!e){ e={id:null, name, role:"", phone:"", mobile:"", email:"", src:new Set(), last:""}; out.push(e); byName.set(k,e); }
+    if(x.id && !e.id) e.id=x.id;
+    e.role = e.role || x.function || x.role || "";
+    e.phone = e.phone || x.phone || ""; e.mobile = e.mobile || x.mobile || "";
+    e.email = e.email || x.email || "";
+    e.src.add(src); if(x.date && x.date>e.last) e.last=x.date;
+  };
+  // 1. Visites : celles du téléphone et le journal partagé de l'équipe
+  const k=keyOf(c);
+  for(const v of visitsFor(k)) add({name:v.contactName, role:v.contactRole, phone:v.contactPhone, email:v.contactEmail, date:v.date}, "visite");
+  if(odooAuth && navigator.onLine){ try{ const sh=(await relay("/visites/history",{method:"POST",body:identOf(c)})).visits||[]; for(const v of sh) add({...(v.contact||{}), date:v.date}, "visite"); }catch(e){} }
+  // 2. Odoo : tous les contacts de la fiche
+  let standard="";
+  const pid=partnerIdOf(c);
+  if(pid){
+    let d = F && F.detail && F.detail.id===pid ? F.detail : null;
+    const ck="odf:"+pid;
+    if(!d){ try{ d=JSON.parse(LS.getItem(ck)||"null")?.d||null; }catch(e){} }
+    if(navigator.onLine && odooAuth && (!d || !(F && F.detail===d))){ try{ d=await relay("/odoo/societe/"+pid); try{ LS.setItem(ck, JSON.stringify({at:Date.now(), d})); }catch(e){} }catch(e){} }
+    if(d){ for(const x of d.contacts||[]) add(x, "odoo"); standard = d.phone || d.mobile || ""; }
+  }
+  // Dernier contact de visite en premier, puis ordre alphabétique
+  const lastV = out.filter(e=>e.last).sort((a,b)=>b.last.localeCompare(a.last))[0] || null;
+  const rest = out.filter(e=>e!==lastV).sort((a,b)=>a.name.localeCompare(b.name,"fr"));
+  return {list: lastV ? [lastV, ...rest] : rest, last: lastV, standard, pid};
+}
+const ctPhone = e => e.mobile || e.phone || "";
+
+/* ---------- 2.11 : scan d'une carte de visite (relais → Workers AI) ---------- */
+/** Ouvre l'appareil photo, réduit la photo, l'envoie au relais ; renvoie les champs lus (ou null) */
+function scanCard(){
+  return new Promise(resolve=>{
+    if(!odooAuth){ toast("Connectez-vous à Odoo (Réglages) pour scanner une carte"); return resolve(null); }
+    if(!navigator.onLine){ toast("Réseau nécessaire pour lire la carte"); return resolve(null); }
+    const inp=document.createElement("input"); inp.type="file"; inp.accept="image/*"; inp.setAttribute("capture","environment");
+    inp.style.display="none"; document.body.appendChild(inp);
+    inp.onchange=async()=>{
+      const f=inp.files?.[0]; inp.remove(); if(!f) return resolve(null);
+      toast("Lecture de la carte…");
+      try{
+        const image=await shrinkImage(f, 1280, 0.8);
+        const r=await relay("/scan/carte",{method:"POST",body:{image, jour:todayYMD()}});
+        if(!r.champs){ toast("Carte illisible : saisissez le contact à la main"); return resolve(null); }
+        toast(`Carte lue · vérifiez les champs (${r.restants} scan${r.restants>1?"s":""} restant${r.restants>1?"s":""} aujourd'hui)`);
+        resolve(r.champs);
+      }catch(e){ toast(e.message); resolve(null); }
+    };
+    inp.click();
+  });
+}
+function shrinkImage(file, max, q){
+  return new Promise((ok, ko)=>{
+    const url=URL.createObjectURL(file), img=new Image();
+    img.onload=()=>{ const s=Math.min(1, max/Math.max(img.width, img.height)); const cv=document.createElement("canvas");
+      cv.width=Math.round(img.width*s); cv.height=Math.round(img.height*s); cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);
+      URL.revokeObjectURL(url); ok(cv.toDataURL("image/jpeg", q)); };
+    img.onerror=()=>{ URL.revokeObjectURL(url); ko(new Error("Photo illisible")); };
+    img.src=url;
+  });
+}
+const SCAN_ICON = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>`;
+
 /* ---------- Formulaire de visite ---------- */
 function openVisitForm(c, existing){
   const v = existing ? {...existing} : {
     id:uid(), key:c.key||c.siret, siret:c.siret||"", siren:c.siren||"", name:c.name||"", address:c.address||"", lat:c.lat, lng:c.lng,
     naf:c.naf||"", nafLabel:nafLabel(c.naf), forme:formeLabel(c.forme), effectif:EFFECTIFS[c.effectifUl]||"", dirigeant:c.dirigeants?.[0]?`${c.dirigeants[0].who} (${c.dirigeants[0].role})`:"",
-    manual:!!c.manual, date:new Date().toISOString(), status:"", contactName:"", contactRole:"", contactPhone:"", contactEmail:"", solutions:[], notes:"", callbackDate:"", rdvStart:"", rdvDuree:1, cible:cibleOf(c, null, F && keyOf(F.c)===keyOf(c) ? (F.pIdx||0) : 0),
+    manual:!!c.manual, date:new Date().toISOString(), status:"", contactName:"", contactRole:"", contactPhone:"", contactEmail:"", contactOdooId:null, solutions:[], notes:"", callbackDate:"", rdvStart:"", rdvDuree:1, rdvCateg:"", cible:cibleOf(c, null, F && keyOf(F.c)===keyOf(c) ? (F.pIdx||0) : 0),
     equip: JSON.parse(JSON.stringify(equipOfC(c) || {}))  // reprise de l'équipement connu (partagé, sinon téléphone)
   };
   v.equip = normEquip(v.equip);
@@ -1332,15 +1442,23 @@ function openVisitForm(c, existing){
       <div id="v-rdv-wrap" class="stack" style="gap:8px" ${v.status==="invite"?"":"hidden"}>
         <div class="row" style="gap:8px"><label class="f" style="flex:1.4">Date du RDV *<input type="date" id="v-rdv-d" value="${esc(rdvParts(v.rdvStart).d)}" min="${todayYMD()}"></label>
           <label class="f" style="flex:1">Heure *<input type="time" id="v-rdv-h" step="900" value="${esc(rdvParts(v.rdvStart).h)}"></label></div>
+        ${rdvCatField("v-rdv-cat")}
         <label class="f">Durée<select id="v-rdv-dur">${[[0.5,"30 min"],[1,"1 h"],[1.5,"1 h 30"],[2,"2 h"]].map(([x,l])=>`<option value="${x}" ${+(v.rdvDuree||1)===x?"selected":""}>${l}</option>`).join("")}</select></label>
-        <div class="co-sub">Le RDV est créé dans votre agenda Odoo, sur la fiche de l'entreprise, avec le contact en participant. Odoo n'envoie rien : l'invitation part ensuite de votre Outlook. Nom et e-mail du contact obligatoires.</div>
+        <div class="co-sub">Le RDV « RDV TRIMARG x ${esc(v.name||"société")} » est créé dans votre agenda Odoo, sur la fiche de l'entreprise, avec le contact en participant. Odoo n'envoie rien : l'invitation part ensuite de votre Outlook. Nom et e-mail du contact obligatoires.</div>
         <div class="err" id="v-rdv-err" hidden></div></div>
       <div><div class="f" style="font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:6px">Solutions évoquées <span style="font-weight:400">(étiquettes Odoo)</span></div>
         <div class="sol" id="v-sol">${[...new Set([...productTags(), ...v.solutions])].map(s=>`<button type="button" data-v="${esc(s)}" aria-pressed="${v.solutions.includes(s)}">${esc(s)}</button>`).join("")}</div></div>
-      <label class="f"><span>Nom du contact<span class="req-inv" ${v.status==="invite"?"":"hidden"}> *</span></span><input id="v-cname" value="${esc(v.contactName)}" autocomplete="name"></label>
-      <label class="f">Fonction<input id="v-crole" value="${esc(v.contactRole)}" placeholder="Gérant, DAF, comptable…"></label>
-      <label class="f">Téléphone<input id="v-cphone" type="tel" value="${esc(v.contactPhone)}" autocomplete="tel"></label>
-      <label class="f"><span>E-mail<span class="req-inv" ${v.status==="invite"?"":"hidden"}> *</span></span><input id="v-cemail" type="email" value="${esc(v.contactEmail)}" autocomplete="email" autocapitalize="off"><span class="err" id="v-email-err" hidden>Adresse e-mail invalide</span></label>
+      <div id="v-ct"><div class="f" style="font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:6px">Contact<span class="req-inv" ${v.status==="invite"?"":"hidden"}> * (nom et e-mail)</span></div>
+        <div id="v-ct-card" hidden></div>
+        <div id="v-ct-list" hidden></div>
+        <div id="v-ct-fields" class="stack" style="gap:10px">
+          ${odooAuth?`<button type="button" class="btn ghost sm" id="v-scan">${SCAN_ICON}Scanner une carte de visite</button>`:""}
+          <label class="f"><span>Nom du contact<span class="req-inv" ${v.status==="invite"?"":"hidden"}> *</span></span><input id="v-cname" value="${esc(v.contactName)}" autocomplete="name"></label>
+          <label class="f">Fonction<input id="v-crole" value="${esc(v.contactRole)}" placeholder="Gérant, DAF, comptable…"></label>
+          <label class="f">Téléphone<input id="v-cphone" type="tel" value="${esc(v.contactPhone)}" autocomplete="tel"></label>
+          <label class="f"><span>E-mail<span class="req-inv" ${v.status==="invite"?"":"hidden"}> *</span></span><input id="v-cemail" type="email" value="${esc(v.contactEmail)}" autocomplete="email" autocapitalize="off"><span class="err" id="v-email-err" hidden>Adresse e-mail invalide</span></label>
+          <button type="button" class="linkbtn" id="v-ct-known" hidden>Choisir un contact déjà connu</button>
+        </div></div>
       <label class="f">Notes<textarea id="v-notes" placeholder="Besoin, outils actuels, prochaine étape… (dictée vocale : micro du clavier)">${esc(v.notes)}</textarea></label>
       ${equipForm(v.equip)}
       ${odooAuth&&!existing?`<div><button type="button" class="btn ghost sm" id="v-grp-btn">Groupe : renseigner</button><div id="v-grp"></div></div>`:""}
@@ -1360,6 +1478,55 @@ function openVisitForm(c, existing){
   $("#v-sol").onclick=e=>{ const b=e.target.closest("button"); if(!b) return; const on=b.getAttribute("aria-pressed")!=="true"; b.setAttribute("aria-pressed",on); };
   $("#v-save").onclick=()=>save();
   bindEquipForm();
+  fillRdvCat("v-rdv-cat", v.rdvCateg);
+  /* 2.11 — Contact : société déjà connue → dernier contact en carte + « Changer » (tous les contacts Odoo, contacts des visites, nouveau) */
+  let ct = {mode:"fields", sel:null, known:null};
+  const fld = id => $("#"+id);
+  function setFields(e){ fld("v-cname").value=e?.name||""; fld("v-crole").value=e?.role||""; fld("v-cphone").value=e?ctPhone(e):""; fld("v-cemail").value=e?.email||""; }
+  function drawCt(){
+    const card=$("#v-ct-card"), list=$("#v-ct-list"), fields=$("#v-ct-fields"); if(!card) return;
+    const kl = ct.known?.list || [];
+    fld("v-ct-known").hidden = !(ct.mode==="fields" && kl.length); fld("v-ct-known").textContent=`Choisir un contact déjà connu (${kl.length})`;
+    list.hidden = ct.mode!=="list"; card.hidden = ct.mode!=="card"; fields.hidden = ct.mode!=="fields";
+    if(ct.mode==="card"){ const e=ct.sel, ph=ctPhone(e);
+      card.innerHTML=`<div class="card" style="padding:12px"><div><b>${esc(e.name)}</b>${e.role?` <span class="co-sub">· ${esc(e.role)}</span>`:""}</div>
+        <div class="co-sub tabular" style="margin-top:2px">${[ph, e.email].filter(Boolean).map(esc).join(" · ")||"Ni téléphone ni e-mail"}</div>
+        <div class="co-sub" style="margin-top:2px">${e===ct.known?.last?"Contact de la dernière visite":e.id?"Contact Odoo":"Contact d'une visite"}</div>
+        <div class="row" style="gap:8px;margin-top:8px"><button type="button" class="btn sm" id="v-ct-chg">Changer</button><button type="button" class="btn ghost sm" id="v-ct-edit">✎ Corriger</button></div></div>`;
+      $("#v-ct-chg").onclick=()=>{ ct.mode="list"; drawCt(); };
+      $("#v-ct-edit").onclick=()=>{ setFields(ct.sel); v.contactOdooId=ct.sel.id||null; ct.mode="fields"; drawCt(); fld("v-cname").focus(); };
+    }
+    if(ct.mode==="list"){
+      list.innerHTML=`<div class="card" style="padding:4px 12px 8px">${kl.map((e,i)=>`<button type="button" class="ctrow" data-ct="${i}" aria-pressed="${ct.sel===e}">
+          <span class="t">${esc(e.name)}${e.role?` <span class="co-sub">· ${esc(e.role)}</span>`:""}</span><span class="s tabular">${[ctPhone(e), e.email].filter(Boolean).map(esc).join(" · ")||"Ni téléphone ni e-mail"}${e===ct.known.last?" · dernière visite":""}${e.id?"":" · pas encore dans Odoo"}</span></button>`).join("")}
+        ${ct.known.standard?`<div class="co-sub" style="padding:8px 0">Standard : <a class="tabular" href="tel:${esc(ct.known.standard.replace(/\s/g,""))}">${esc(ct.known.standard)}</a></div>`:""}
+        <button type="button" class="btn ghost sm block" id="v-ct-new" style="margin:8px 0 4px">＋ Nouveau contact</button>
+        ${ct.sel?`<button type="button" class="linkbtn" id="v-ct-back">Garder ${esc(ct.sel.name)}</button>`:`<button type="button" class="linkbtn" id="v-ct-back">Retour</button>`}</div>`;
+      list.querySelectorAll("[data-ct]").forEach(b=>b.onclick=()=>{ ct.sel=kl[+b.dataset.ct]; v.contactOdooId=ct.sel.id||null; setFields(ct.sel); ct.mode="card"; drawCt(); });
+      $("#v-ct-new").onclick=()=>{ ct.sel=null; v.contactOdooId=null; setFields(null); ct.mode="fields"; drawCt(); fld("v-cname").focus(); };
+      $("#v-ct-back").onclick=()=>{ ct.mode=ct.sel?"card":"fields"; drawCt(); };
+    }
+  }
+  fld("v-ct-known").onclick=()=>{ ct.mode="list"; drawCt(); };
+  const untouched = () => !["v-cname","v-crole","v-cphone","v-cemail"].some(id=>fld(id)?.value.trim());
+  const cc = existing ? companyFromVisit(v) : c;
+  if(cc && (!manual || partnerIdOf(cc) || visitsFor(keyOf(cc)).length)) knownContacts(cc).then(k=>{
+    if(!$("#v-ct")) return; ct.known=k;
+    if(existing && v.contactName){ const m=k.list.find(e=>ctNorm(e.name)===ctNorm(v.contactName)); if(m){ ct.sel=m; v.contactOdooId=v.contactOdooId||m.id||null; } }
+    else if(!existing && k.list.length && untouched()){
+      if(k.last){ ct.sel=k.last; v.contactOdooId=ct.sel.id||null; setFields(ct.sel); ct.mode="card"; }   // dernier contact de visite pré-sélectionné
+      else ct.mode="list";   // jamais visitée mais contacts dans Odoo : la liste est affichée pour choisir
+    }
+    drawCt();
+  }).catch(()=>{});
+  // Nom saisi à la main = un contact connu → on le rattache (pas de doublon dans Odoo)
+  fld("v-cname").addEventListener("change",()=>{ const m=ct.known?.list.find(e=>ctNorm(e.name)===ctNorm(fld("v-cname").value)); v.contactOdooId = m ? (m.id||null) : null; });
+  const sb=$("#v-scan"); if(sb) sb.onclick=async()=>{ sb.disabled=true; const r=await scanCard(); sb.disabled=false; if(!r) return;
+    fld("v-cname").value=r.nom||fld("v-cname").value; fld("v-crole").value=r.fonction||fld("v-crole").value;
+    fld("v-cphone").value=r.mobile||r.telephone||fld("v-cphone").value; fld("v-cemail").value=r.email||fld("v-cemail").value;
+    const m=ct.known?.list.find(e=>ctNorm(e.name)===ctNorm(r.nom)); v.contactOdooId = m ? (m.id||null) : null;
+    if(r.telephone && r.mobile && r.telephone!==r.mobile){ const n=fld("v-notes"); if(!n.value.includes(r.telephone)) n.value=(n.value?n.value+"\n":"")+"Fixe : "+r.telephone; }
+    if(manual){ if(r.societe && !$("#v-name").value.trim()){ $("#v-name").value=r.societe; $("#v-name").dispatchEvent(new Event("input")); } if(r.adresse && !$("#v-addr").value.trim()) $("#v-addr").value=r.adresse; } };
   // Saisie manuelle : recherche Odoo au fil de la frappe, rattachement en un tap
   let odLink = manual ? (odooLinks[v.key]||null) : null;
   function drawOdLink(){
@@ -1412,7 +1579,7 @@ function openVisitForm(c, existing){
     v.solutions=[...$("#v-sol").querySelectorAll('[aria-pressed="true"]')].map(b=>b.dataset.v);
     v.callbackDate = v.status==="callback" ? $("#v-cb").value : "";
     if(v.cible==="horscible"){ v.status="horscible"; v.callbackDate=""; }
-    v.rdvStart = ""; v.rdvDuree = +$("#v-rdv-dur").value || 1;
+    v.rdvStart = ""; v.rdvDuree = +$("#v-rdv-dur").value || 1; v.rdvCateg = $("#v-rdv-cat")?.value || "";
     if(v.status==="callback" && !v.callbackDate){ toast("Date de rappel obligatoire"); $("#v-cb").focus(); return; }
     if(v.status==="invite"){
       const d=$("#v-rdv-d").value, h=$("#v-rdv-h").value, er=$("#v-rdv-err");
@@ -1421,15 +1588,15 @@ function openVisitForm(c, existing){
       if(!d || !h) return bad("Date et heure du RDV obligatoires");
       const dt = new Date(d+"T"+h);   // heure locale du téléphone
       if(isNaN(dt) || (!existing && dt < new Date())) return bad("Le RDV doit être dans le futur");
-      if(!v.contactName){ toast("Nom du contact obligatoire pour une invitation"); $("#v-cname").focus(); return; }
-      if(!v.contactEmail){ toast("E-mail du contact obligatoire pour une invitation"); $("#v-cemail").focus(); return; }
+      if(!v.contactName){ toast("Nom du contact obligatoire pour une invitation"); if(ct.mode!=="fields"){ ct.mode="fields"; drawCt(); } $("#v-cname").focus(); return; }
+      if(!v.contactEmail){ toast("E-mail du contact obligatoire pour une invitation"); if(ct.mode!=="fields"){ ct.mode="fields"; drawCt(); } $("#v-cemail").focus(); return; }
       er.hidden=true; v.rdvStart = dt.toISOString();
     }
     if(manual){ v.name=$("#v-name").value.trim(); v.address=$("#v-addr").value.trim(); if(!v.name){ toast("Le nom de l'entreprise est obligatoire"); $("#v-name").focus(); return; } }
     if(!v.cible && !existing){ $("#v-cible-err").hidden=false; $("#v-cible").scrollIntoView({block:"center",behavior:"smooth"}); return; }
     if(v.cible==="horscible"){ v.status="horscible"; v.callbackDate=""; }
     if(!v.status){ $("#v-status-err").hidden=false; $("#v-status").scrollIntoView({block:"center",behavior:"smooth"}); return; }
-    if(v.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.contactEmail)){ $("#v-email-err").hidden=false; $("#v-cemail").focus(); return; }
+    if(v.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.contactEmail)){ if(ct.mode!=="fields"){ ct.mode="fields"; drawCt(); } $("#v-email-err").hidden=false; $("#v-cemail").focus(); return; }
     // Entreprise absente d'Odoo et création non cochée : on demande quoi faire
     let wantCreate = !existing && !odLink && !!$("#v-od-create")?.checked;
     if(v.cible==="horscible") wantCreate=false;   // hors cible : jamais de création de fiche Odoo
@@ -1558,17 +1725,18 @@ async function rappelAction(a, kind){
       <div><div class="co-name" style="font-size:18px;margin:0">${esc(a.name)}</div></div>
       <div class="row" style="gap:8px"><label class="f" style="flex:1.4">Date du RDV *<input type="date" id="r-d" min="${todayYMD()}"></label><label class="f" style="flex:1">Heure *<input type="time" id="r-h" step="900"></label></div>
       <label class="f">Durée<select id="r-dur"><option value="0.5">30 min</option><option value="1" selected>1 h</option><option value="1.5">1 h 30</option><option value="2">2 h</option></select></label>
+      ${rdvCatField("r-cat")}
       <label class="f">Nom du contact *<input id="r-cn" value="${esc(ct.name||"")}" autocomplete="name"></label>
       <label class="f">E-mail du contact *<input id="r-ce" type="email" value="${esc(ct.email||"")}" autocapitalize="off" autocomplete="email"></label>
-      <div class="co-sub">Le RDV est créé dans votre agenda Odoo avec le contact en participant, sans texte ; l'invitation part de votre Outlook. Le rappel est clos « RDV pris ».</div>
+      <div class="co-sub">Le RDV « RDV TRIMARG x ${esc(a.name)} » est créé dans votre agenda Odoo avec le contact en participant, sans texte ; l'invitation part de votre Outlook. Le rappel est clos « RDV pris ».</div>
       <div class="err" id="r-err" hidden></div>
       <button class="btn block" id="r-go">Valider le RDV</button></div>`});
     const go = async ()=>{ const d=$("#r-d").value, h=$("#r-h").value, n=$("#r-cn").value.trim(), em=$("#r-ce").value.trim(), er=$("#r-err");
       const bad=m=>{ er.textContent=m; er.hidden=false; };
       if(!d||!h) return bad("Date et heure du RDV obligatoires"); const dt=new Date(d+"T"+h); if(isNaN(dt)||dt<new Date()) return bad("Le RDV doit être dans le futur");
       if(!n) return bad("Nom du contact obligatoire"); if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) return bad("E-mail du contact obligatoire (adresse valide)");
-      $("#r-go").disabled=true; if(!await send({rdv:{start:dt.toISOString(), duree:+$("#r-dur").value||1}, contact:{name:n, email:em, phone:ct.phone||""}})) $("#r-go").disabled=false; };
-    $("#r-go").onclick=go; return;
+      $("#r-go").disabled=true; if(!await send({rdv:{start:dt.toISOString(), duree:+$("#r-dur").value||1, categ:rdvCatVal("r-cat")}, contact:{name:n, email:em, phone:ct.phone||""}})) $("#r-go").disabled=false; };
+    $("#r-go").onclick=go; fillRdvCat("r-cat"); return;
   }
   if(kind==="autre"){
     openModal({title:"Autre", left:"Retour", right:"Valider", onRight:()=>go(), html:`<div class="stack">
@@ -1749,7 +1917,7 @@ async function odooRefreshStatus(force=false){
 }
 
 /* ---------- Filtre & légende ---------- */
-const ODOO_FILTERS = {client:"Clients", opportunite:"Opportunités en cours", qualifie:"Prospects qualifiés", prospect:"Prospects", horscible:"Hors cible", contrat:"Fin de contrat ≤ 6 mois", never:"Jamais visitées"};
+const ODOO_FILTERS = {client:"Clients", opportunite:"Opportunités en cours", strategique:"Comptes stratégiques", pme:"PME", qualifie:"Prospects qualifiés", prospect:"Prospects", horscible:"Hors cible", contrat:"Fin de contrat ≤ 6 mois", never:"Jamais visitées"};
 let odooFilter = "";
 function passesOdooFilter(cat, lv, clock){
   if(!odooFilter) return true;
@@ -1783,9 +1951,11 @@ function openLegend(keepScroll){
     <div class="lgd" style="margin-top:10px">
       <span>${ic("client")}<span><b>Client</b> — opportunité « Clos et accepté »</span></span>
       <span>${ic("opportunite")}<span><b>Opportunité en cours</b></span></span>
-      <span>${ic("qualifie")}<span><b>Prospect qualifié</b> — déjà visité, équipement renseigné</span></span>
+      <span>${ic("strategique")}<span><b>Compte stratégique</b> — sans opportunité en cours</span></span>
+      <span>${ic("pme")}<span><b>PME</b> — sans opportunité en cours</span></span>
+      <span>${ic("qualifie")}<span><b>Prospect qualifié</b> — déjà visité, équipement renseigné, cible non renseignée</span></span>
       <span>${ic("horscible")}<span><b>Hors cible</b> — inutile de repasser</span></span>
-      <span>${ic("prospect")}<span><b>Prospect</b> — non rattaché à Odoo ou sans opportunité</span></span>
+      <span>${ic("prospect")}<span><b>Prospect</b> — cible non renseignée, sans opportunité</span></span>
       <span>${ic("prospect",false,false,true)}<span>Gros point : <b>10 salariés ou plus</b></span></span>
       <span>${ic("prospect",false,false,false,3)}<span>Badge ×N : <b>plusieurs entreprises à la même adresse</b> (touchez pour la liste)</span></span>
       <span><span class="clu" style="width:30px;height:30px;font-size:11px;flex:none">12</span><span>Bulle : <b>entreprises regroupées</b> (touchez pour zoomer)</span></span>
@@ -2003,8 +2173,8 @@ function queueVisit(v, c, equipBefore, noOdoo=false, creer=null, pid=null){
   outbox.push({
     id:v.id, key:v.key, siren:id.siren||String(v.siren||v.siret||"").slice(0,9), partner_id:id.partner_id, name:v.name, address:v.address,
     lat:v.lat, lng:v.lng, date:v.date, status:v.status, solutions:v.solutions||[], notes:v.notes||"",
-    contact:{name:v.contactName, role:v.contactRole, phone:v.contactPhone, email:v.contactEmail},
-    cible:v.cible||"", callbackDate:v.callbackDate||"", rdv: v.status==="invite" && v.rdvStart ? {start:v.rdvStart, duree:+v.rdvDuree||1} : null, equip:v.equip, equipChanged:changed && equipAny(v.equip), equipLines:equipLines(normEquip(v.equip||{})), noOdoo,
+    contact:{id:v.contactOdooId||null, name:v.contactName, role:v.contactRole, phone:v.contactPhone, email:v.contactEmail},
+    cible:v.cible||"", callbackDate:v.callbackDate||"", rdv: v.status==="invite" && v.rdvStart ? {start:v.rdvStart, duree:+v.rdvDuree||1, categ: v.rdvCateg==="0" ? 0 : (+v.rdvCateg||null)} : null, equip:v.equip, equipChanged:changed && equipAny(v.equip), equipLines:equipLines(normEquip(v.equip||{})), noOdoo,
     creer: id.partner_id ? null : creer
   });
   saveOutbox(); flushOutbox();
@@ -2189,9 +2359,12 @@ async function paneContacts(pane, c){
   const list=d?.contacts||[];
   pane.innerHTML=`${list.length?list.map(x=>`<div class="card" style="margin-top:8px"><b>${esc(x.name)}</b>${x.function?` <span class="co-sub">· ${esc(x.function)}</span>`:""}<div class="row" style="gap:12px;margin-top:4px">${x.phone?`<a class="tabular" href="tel:${esc(String(x.phone).replace(/\s/g,""))}">${esc(x.phone)}</a>`:""}${x.mobile?`<a class="tabular" href="tel:${esc(String(x.mobile).replace(/\s/g,""))}">${esc(x.mobile)}</a>`:""}${x.email?`<a href="mailto:${esc(x.email)}">${esc(x.email)}</a>`:""}</div></div>`).join(""):`<div class="co-sub">Aucun contact dans Odoo.</div>`}
     <h2>Ajouter un contact</h2>
-    <div class="stack"><label class="f">Nom *<input id="ct-name" autocomplete="name"></label><label class="f">Fonction<input id="ct-role"></label>
+    <div class="stack"><button type="button" class="btn ghost sm" id="ct-scan">${SCAN_ICON}Scanner une carte de visite</button>
+    <label class="f">Nom *<input id="ct-name" autocomplete="name"></label><label class="f">Fonction<input id="ct-role"></label>
     <label class="f">Téléphone<input id="ct-phone" type="tel"></label><label class="f">E-mail<input id="ct-email" type="email" autocapitalize="off"></label>
     <button class="btn block" id="ct-go">Ajouter dans Odoo</button></div>`;
+  $("#ct-scan").onclick=async()=>{ const sb=$("#ct-scan"); sb.disabled=true; const r=await scanCard(); sb.disabled=false; if(!r) return;
+    $("#ct-name").value=r.nom||""; $("#ct-role").value=r.fonction||""; $("#ct-phone").value=r.mobile||r.telephone||""; $("#ct-email").value=r.email||""; };
   $("#ct-go").onclick=async()=>{
     const b={partner_id:partnerIdOf(c), name:$("#ct-name").value.trim(), role:$("#ct-role").value.trim(), phone:$("#ct-phone").value.trim(), email:$("#ct-email").value.trim()};
     if(!b.name){ toast("Le nom est obligatoire"); return; }

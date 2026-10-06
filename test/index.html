@@ -55,6 +55,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 #tabbar button{flex:1;border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;color:var(--muted);position:relative}
 #tabbar button svg{width:24px;height:24px}
 #tabbar button[aria-selected="true"]{color:var(--accent)}
+#north-ico{width:26px;height:26px;transition:transform .1s linear}
 .badge{position:absolute;top:5px;left:calc(50% + 6px);min-width:17px;height:17px;border-radius:9px;background:var(--coral);color:#fff;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px}
 
 h1{font-size:26px;letter-spacing:-.02em;margin:4px 0 12px;text-wrap:balance}
@@ -95,7 +96,23 @@ select.pillsel{appearance:none;-webkit-appearance:none;border:0;background:none;
 .sugg button:last-child{border-bottom:0}
 .sugg button b{display:block;font-weight:600;font-size:14.5px}
 .sugg button span{font-size:12px;color:var(--muted)}
+.cropov{position:fixed;inset:0;z-index:1450;background:#0b1214;color:#fff;display:flex;flex-direction:column;touch-action:none;user-select:none;-webkit-user-select:none}
+.crop-top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 8px}
+.crop-top .linkbtn{color:#7fd3d9;min-width:70px} .crop-top b{font-size:16px}
+.crop-stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:18px}
+.crop-wrap{position:relative}
+.crop-wrap canvas{display:block}
+.crop-svg{position:absolute;inset:0;overflow:visible;pointer-events:none}
+.crop-svg polygon{fill:rgba(127,211,217,.18);stroke:#7fd3d9;stroke-width:2.5}
+.crop-h{position:absolute;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;border:3px solid #7fd3d9;background:rgba(11,18,20,.35);touch-action:none}
+.crop-h::after{content:"";position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:#7fd3d9}
+.crop-help{text-align:center;font-size:13px;color:#b9c7ca;padding:0 16px 6px}
+.crop-bot{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:8px 16px calc(env(safe-area-inset-bottom,0px) + 14px)}
+.crop-bot .btn.ghost{color:#fff;border-color:#3a4a4e;background:transparent}
 .sugg .none{padding:12px 14px;color:var(--muted);font-size:13.5px}
+.sugg .sg-h{padding:8px 14px 4px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);background:var(--surface2)}
+.sugg button b .od-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.sugg{max-height:min(70vh,520px);overflow-y:auto}
 .pin{width:30px;height:38px}
 .more{border:0;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:12px;border-radius:999px;padding:4px 10px;flex:none}
 
@@ -318,7 +335,7 @@ details.equip[open]{padding-bottom:14px}
     <div class="map-top">
       <div class="addr" id="addr">
         <div class="pill"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7m0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5"/></svg>
-          <input id="addr-q" type="search" placeholder="Prospecter autour d'une adresse…" autocomplete="off" autocorrect="off" enterkeyhint="search" aria-label="Adresse">
+          <input id="addr-q" type="search" placeholder="Adresse ou entreprise…" autocomplete="off" autocorrect="off" enterkeyhint="search" aria-label="Adresse ou entreprise">
           <button class="addr-x" id="addr-clear" hidden aria-label="Revenir à ma position">×</button></div>
         <div class="sugg" id="addr-sugg" hidden></div>
       </div>
@@ -336,6 +353,7 @@ details.equip[open]{padding-bottom:14px}
       <button class="here" id="btn-here" hidden><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Rechercher dans cette zone</button>
     </div>
     <div class="fabs">
+      <button class="iconbtn fab" id="btn-north" hidden aria-label="Remettre le nord en haut"><svg viewBox="0 0 24 24" id="north-ico"><path d="M12 2.5 17 12h-10z" fill="#c0352b"/><path d="M12 21.5 7 12h10z" fill="currentColor" opacity=".45"/><text x="12" y="11" text-anchor="middle" font-size="5.5" font-weight="800" fill="#fff" font-family="system-ui,sans-serif">N</text></svg></button>
       <button class="iconbtn fab" id="btn-cafe" aria-label="Cafés, snacks et stations-service à proximité"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h12v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M8 3c0 1.5 1 1.5 1 3M12 3c0 1.5 1 1.5 1 3"/></svg></button>
       <button class="iconbtn fab" id="btn-legend" aria-label="Légende et filtres"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 5h16l-6 7v6l-4 2v-8z"/></svg></button>
       <button class="iconbtn fab" id="btn-list" aria-label="Liste des entreprises proches"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
@@ -448,6 +466,7 @@ details.equip[open]{padding-bottom:14px}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script><!-- 2.11.1 : rotation à deux doigts (facultatif : l'app fonctionne sans) -->
 <script>
 "use strict";
 /* =====================================================================
@@ -457,7 +476,7 @@ details.equip[open]{padding-bottom:14px}
    - Carte : Leaflet + OpenStreetMap
    - Stockage : IndexedDB sur l'appareil (aucun serveur)
    ===================================================================== */
-const VERSION = "2.11.0";
+const VERSION = "2.11.2";
 /* Environnement : l'app servie dans un dossier /test/ parle au relais de test et garde ses propres données */
 const IS_TEST = /\/test\//.test(location.pathname);
 /** Stockage local : en test, toutes les clés sont préfixées (même site que la prod) */
@@ -689,8 +708,39 @@ let companies = new Map();   // siret -> fiche
 let lastQuery = null;        // {lat,lng,radius,sector,page,totalPages,total}
 let watching = false;
 
+/* 2.11.1 — Rotation de la carte à deux doigts (plugin leaflet-rotate)
+   Seuil de 15° : un simple pincement pour zoomer ne fait pas tourner la carte.
+   Bouton boussole (au-dessus des boutons de droite) visible dès que le nord n'est plus en haut : un toucher le remet. */
+const ROTATE_THRESHOLD = 15;
+function setupRotation(){
+  const tg = map.touchGestures;
+  if(tg && tg._onTouchMove && !tg._thrPatched){
+    const was = tg.enabled(); if(was) tg.disable();   // retire l'écouteur d'origine avant de remplacer la fonction
+    const start = tg._onTouchStart, move = tg._onTouchMove;
+    tg._onTouchStart = function(e){ this._rotUnlocked = false; return start.call(this, e); };
+    tg._onTouchMove = function(e){
+      if(this._rotating && !this._rotUnlocked && e.touches && e.touches.length===2){
+        const p1=map.mouseEventToContainerPoint(e.touches[0]), p2=map.mouseEventToContainerPoint(e.touches[1]), v=p1.subtract(p2);
+        let d=(Math.atan(v.x/v.y) - this._startTheta) * 180/Math.PI; if(v.y<0) d+=180;
+        d = ((d+540)%360)-180;   // ramené entre -180 et 180
+        if(Math.abs(d) < ROTATE_THRESHOLD){ this._rotating=false; try{ return move.call(this, e); } finally{ this._rotating=true; } }
+        this._rotUnlocked = true; this._startBearing += d;   // départ sans à-coup depuis l'angle atteint
+      }
+      return move.call(this, e);
+    };
+    tg._thrPatched = true;
+    if(was) tg.enable();
+  }
+  const btn=$("#btn-north"), ico=$("#north-ico");
+  const upd=()=>{ const b=map.getBearing()||0; const off=Math.abs(((b%360)+360)%360)>0.5 && Math.abs(((b%360)+360)%360-360)>0.5; btn.hidden=!off; ico.style.transform=`rotate(${-b}deg)`; };
+  map.on("rotate", upd);
+  btn.onclick=()=>{ map.setBearing(0); upd(); };
+  upd();
+}
 function initMap(){
-  map = L.map("map",{zoomControl:false, attributionControl:true, tap:false}).setView([14.6415,-61.0242], 11);
+  const canRotate = !!(L.Map.prototype.setBearing);
+  map = L.map("map",{zoomControl:false, attributionControl:true, tap:false, ...(canRotate?{rotate:true, touchRotate:true, rotateControl:false, shiftKeyRotate:true, bearing:0}:{})}).setView([14.6415,-61.0242], 11);
+  if(canRotate) setupRotation();
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19, attribution:"© OpenStreetMap"}).addTo(map);
   layer = L.layerGroup().addTo(map);
   cafeLayer = L.layerGroup().addTo(map);
@@ -925,22 +975,49 @@ function clearAnchor(){
   $("#addr-q").value = ""; $("#addr-clear").hidden = true; $("#addr").classList.remove("on"); $("#addr-sugg").hidden = true;
 }
 (()=>{
+  /* 2.11.1 : la barre cherche aussi les entreprises (déjà chargées sur la carte, puis base publique du territoire) */
   const inp=$("#addr-q"), box=$("#addr-sugg"); let tm, items=[], seq=0;
-  async function suggest(){
-    const q=inp.value.trim(); if(q.length<3){ box.hidden=true; return; }
-    const my=++seq; const ref=pos||map.getCenter();
-    try{
-      const u=`${GEO_SEARCH}?q=${encodeURIComponent(q)}&limit=15&autocomplete=1&lat=${ref.lat.toFixed(5)}&lon=${ref.lng.toFixed(5)}`;
-      const j=await (await fetch(u)).json(); if(my!==seq) return;
-      let f=(j.features||[]).filter(x=>x.geometry?.coordinates);
-      // Priorité au territoire choisi dans les réglages
-      if(settings.dept){ const loc=f.filter(x=>(x.properties.postcode||x.properties.citycode||"").startsWith(settings.dept)); if(loc.length) f=loc; }
-      items=f.slice(0,6);
-      box.innerHTML = items.length ? items.map((x,i)=>`<button type="button" data-i="${i}"><b>${esc(x.properties.label)}</b><span>${esc(x.properties.context||"")}</span></button>`).join("") : `<div class="none">Aucune adresse trouvée</div>`;
-      box.hidden=false;
-    }catch(e){ if(my===seq){ box.innerHTML=`<div class="none">${navigator.onLine?"Recherche d'adresse indisponible":"Hors ligne"}</div>`; box.hidden=false; } }
+  const nq = x => String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+  function render(addrs, cos, pendingCo){
+    const coFirst = !/^\d/.test(inp.value.trim());   // « 12 rue… » : adresses d'abord
+    items = coFirst ? [...cos.map(c=>({t:"co",c})), ...addrs.map(a=>({t:"ad",a}))] : [...addrs.map(a=>({t:"ad",a})), ...cos.map(c=>({t:"co",c}))];
+    const coHtml = cos.length ? `<div class="sg-h">Entreprises</div>` + cos.map(c=>{ const i=items.findIndex(x=>x.c===c); const cat=markerCat(c, lastVisitMap().get(keyOf(c)));
+        return `<button type="button" data-i="${i}"><b><i class="od-dot" style="background:var(${CAT_VAR[cat]})"></i>${esc(c.name)}</b><span>${esc(c.address||"")}</span></button>`; }).join("")
+      : pendingCo ? `<div class="sg-h">Entreprises</div><div class="none">Recherche…</div>` : "";
+    const adHtml = addrs.length ? `<div class="sg-h">Adresses</div>` + addrs.map(a=>`<button type="button" data-i="${items.findIndex(x=>x.a===a)}"><b>${esc(a.properties.label)}</b><span>${esc(a.properties.context||"")}</span></button>`).join("") : "";
+    box.innerHTML = (coFirst ? coHtml+adHtml : adHtml+coHtml) || `<div class="none">Aucune adresse ni entreprise trouvée</div>`;
+    box.hidden=false;
   }
-  function pick(i){ const x=items[i]; if(!x) return; const [lng,lat]=x.geometry.coordinates; setAnchor(lat,lng,x.properties.label); }
+  async function suggest(){
+    const q=inp.value.trim(); if(q.length<3){ box.hidden=true; items=[]; return; }
+    const my=++seq; const ref=pos||map.getCenter();
+    // 1. Entreprises déjà chargées (immédiat, marche hors ligne)
+    const words=nq(q).split(/\s+/).filter(Boolean);
+    const local=[...companies.values()].filter(c=>{ const h=nq((c.name||"")+" "+(c.legalName||"")); return words.every(w=>h.includes(w)); })
+      .sort((a,b)=>distance(ref,a)-distance(ref,b)).slice(0,4);
+    let addrs=[], cos=local; render(addrs, cos, navigator.onLine);
+    const geo = (async()=>{ try{
+        const u=`${GEO_SEARCH}?q=${encodeURIComponent(q)}&limit=15&autocomplete=1&lat=${ref.lat.toFixed(5)}&lon=${ref.lng.toFixed(5)}`;
+        const j=await (await fetch(u)).json(); let f=(j.features||[]).filter(x=>x.geometry?.coordinates);
+        if(settings.dept){ const loc=f.filter(x=>(x.properties.postcode||x.properties.citycode||"").startsWith(settings.dept)); if(loc.length) f=loc; }
+        addrs=f.slice(0,4); if(my===seq) render(addrs, cos, true);
+      }catch(e){} })();
+    // 2. Base publique (territoire des réglages), noms et enseignes
+    const pub = (async()=>{ if(!navigator.onLine) return; try{
+        const d=await apiGet("/search",{q, departement:settings.dept, per_page:6, limite_matching_etablissements:3, etat_administratif:"A"});
+        const seen=new Set(cos.map(keyOf));
+        for(const ul of d.results||[]){ const et=(ul.matching_etablissements||[]).find(e=>e.etat_administratif==="A")||ul.siege; const c=normalize(ul,et);
+          if(!c.diffusible || isNaN(c.lat) || seen.has(keyOf(c))) continue; const known=companies.get(c.siret); cos.push(known||c); seen.add(keyOf(c)); if(cos.length>=6) break; }
+        if(my===seq) render(addrs, cos, false);
+      }catch(e){} })();
+    await Promise.all([geo, pub]);
+    if(my===seq) render(addrs, cos, false);
+  }
+  function pick(i){ const x=items[i]; if(!x) return;
+    if(x.t==="ad"){ const [lng,lat]=x.a.geometry.coordinates; setAnchor(lat,lng,x.a.properties.label); return; }
+    const c=x.c; box.hidden=true; inp.value=anchor?anchor.label:""; inp.blur();
+    if(!companies.has(c.siret)) companies.set(c.siret,c);
+    map.setView([c.lat,c.lng],17); drawMarkers(); odooRefreshStatus(); openCompany(c); }
   inp.addEventListener("input",()=>{ clearTimeout(tm); tm=setTimeout(suggest,300); });
   inp.addEventListener("focus",()=>{ if(anchor) inp.select(); });
   inp.addEventListener("keydown",async e=>{ if(e.key==="Enter"){ e.preventDefault(); clearTimeout(tm); if(!items.length||box.hidden) await suggest(); pick(0); } });
@@ -1377,6 +1454,104 @@ async function knownContacts(c){
 }
 const ctPhone = e => e.mobile || e.phone || "";
 
+/* ---------- 2.11.2 : découpe de la carte de visite (contour détecté + coins réglables + redressement) ----------
+   1. Détection automatique : image réduite à ~320 px, seuil d'Otsu (carte claire sur fond plus sombre, ou l'inverse),
+      plus grande zone d'un seul tenant, coins = points extrêmes selon les diagonales.
+   2. Écran de réglage : 4 poignées à faire glisser ; « Valider » redresse la carte (perspective) en rectangle. */
+function loadImg(file){ return new Promise((ok,ko)=>{ const url=URL.createObjectURL(file), img=new Image(); img.onload=()=>ok({img,url}); img.onerror=()=>{ URL.revokeObjectURL(url); ko(new Error("Photo illisible")); }; img.src=url; }); }
+function detectQuad(img){
+  const W=img.naturalWidth||img.width, H=img.naturalHeight||img.height, s=Math.min(1, 320/Math.max(W,H));
+  const w=Math.max(8,Math.round(W*s)), h=Math.max(8,Math.round(H*s));
+  const cv=document.createElement("canvas"); cv.width=w; cv.height=h; const cx=cv.getContext("2d",{willReadFrequently:true}); cx.drawImage(img,0,0,w,h);
+  const d=cx.getImageData(0,0,w,h).data, g=new Uint8Array(w*h), hist=new Array(256).fill(0);
+  for(let i=0;i<w*h;i++){ const v=(d[i*4]*0.299+d[i*4+1]*0.587+d[i*4+2]*0.114)|0; g[i]=v; hist[v]++; }
+  // Otsu
+  let sum=0; for(let i=0;i<256;i++) sum+=i*hist[i];
+  let sB=0, wB=0, best=0, thr=128; const tot=w*h;
+  for(let t=0;t<256;t++){ wB+=hist[t]; if(!wB) continue; const wF=tot-wB; if(!wF) break; sB+=t*hist[t]; const mB=sB/wB, mF=(sum-sB)/wF, v=wB*wF*(mB-mF)**2; if(v>best){ best=v; thr=t; } }
+  const def = {pts:[[0.08,0.12],[0.92,0.12],[0.92,0.88],[0.08,0.88]].map(([x,y])=>[x*W,y*H]), auto:false};
+  // La carte = la classe qui ne touche pas (ou le moins) les bords de l'image
+  let edgeBright=0, edgeN=0; for(let x=0;x<w;x++){ for(const y of [0,h-1]){ edgeN++; if(g[y*w+x]>thr) edgeBright++; } } for(let y=0;y<h;y++){ for(const x of [0,w-1]){ edgeN++; if(g[y*w+x]>thr) edgeBright++; } }
+  const cardBright = edgeBright/edgeN < 0.5;
+  const m=new Uint8Array(w*h); for(let i=0;i<w*h;i++) m[i] = cardBright ? (g[i]>thr) : (g[i]<=thr);
+  // plus grande composante connexe
+  const lab=new Int32Array(w*h).fill(-1); let bestN=0, bestL=-1; const st=[];
+  for(let i=0;i<w*h;i++){ if(!m[i]||lab[i]>=0) continue; let n=0; st.push(i); lab[i]=i;
+    while(st.length){ const p=st.pop(); n++; const x=p%w, y=(p/w)|0;
+      if(x>0&&m[p-1]&&lab[p-1]<0){lab[p-1]=i;st.push(p-1);} if(x<w-1&&m[p+1]&&lab[p+1]<0){lab[p+1]=i;st.push(p+1);}
+      if(y>0&&m[p-w]&&lab[p-w]<0){lab[p-w]=i;st.push(p-w);} if(y<h-1&&m[p+w]&&lab[p+w]<0){lab[p+w]=i;st.push(p+w);} }
+    if(n>bestN){ bestN=n; bestL=i; } }
+  if(bestN < w*h*0.08 || bestN > w*h*0.97) return def;   // rien de net : cadre par défaut
+  let tl=null,tr=null,br=null,bl=null, a=1e9,b=-1e9,c=-1e9,e=-1e9;
+  for(let i=0;i<w*h;i++){ if(lab[i]!==bestL) continue; const x=i%w, y=(i/w)|0;
+    if(x+y<a){a=x+y;tl=[x,y];} if(x-y>b){b=x-y;tr=[x,y];} if(x+y>c){c=x+y;br=[x,y];} if(y-x>e){e=y-x;bl=[x,y];} }
+  const pts=[tl,tr,br,bl].map(([x,y])=>[x/s,y/s]);
+  const area = Math.abs(((pts[0][0]*pts[1][1]-pts[1][0]*pts[0][1])+(pts[1][0]*pts[2][1]-pts[2][0]*pts[1][1])+(pts[2][0]*pts[3][1]-pts[3][0]*pts[2][1])+(pts[3][0]*pts[0][1]-pts[0][0]*pts[3][1]))/2);
+  if(area < W*H*0.08) return def;
+  return {pts, auto:true};
+}
+/** Homographie : 4 points (u,v) → (x,y) */
+function homography(src, dst){
+  const A=[], B=[];
+  for(let i=0;i<4;i++){ const [x,y]=src[i], [u,v]=dst[i];
+    A.push([x,y,1,0,0,0,-u*x,-u*y]); B.push(u); A.push([0,0,0,x,y,1,-v*x,-v*y]); B.push(v); }
+  // Gauss
+  const n=8; for(let i=0;i<n;i++){ let p=i; for(let r=i+1;r<n;r++) if(Math.abs(A[r][i])>Math.abs(A[p][i])) p=r; [A[i],A[p]]=[A[p],A[i]]; [B[i],B[p]]=[B[p],B[i]];
+    for(let r=0;r<n;r++){ if(r===i) continue; const f=A[r][i]/A[i][i]; for(let k=i;k<n;k++) A[r][k]-=f*A[i][k]; B[r]-=f*B[i]; } }
+  const hh=B.map((v,i)=>v/A[i][i]); return [...hh,1];
+}
+function warpCard(img, q, maxSide=1280){
+  const dist=(p,r)=>Math.hypot(p[0]-r[0],p[1]-r[1]);
+  let ow=Math.max(dist(q[0],q[1]),dist(q[3],q[2])), oh=Math.max(dist(q[0],q[3]),dist(q[1],q[2]));
+  const k=Math.min(1, maxSide/Math.max(ow,oh)); ow=Math.max(16,Math.round(ow*k)); oh=Math.max(16,Math.round(oh*k));
+  // source limitée à 2400 px (mémoire des iPhone, limite de taille des canvas)
+  const W0=img.naturalWidth||img.width, H0=img.naturalHeight||img.height, f=Math.min(1, 2400/Math.max(W0,H0));
+  const W=Math.round(W0*f), H=Math.round(H0*f); q=q.map(([x,y])=>[x*f,y*f]);
+  const sc=document.createElement("canvas"); sc.width=W; sc.height=H; const sx=sc.getContext("2d",{willReadFrequently:true}); sx.drawImage(img,0,0,W,H);
+  const sd=sx.getImageData(0,0,W,H).data;
+  const M=homography([[0,0],[ow,0],[ow,oh],[0,oh]], q);   // destination → source
+  const oc=document.createElement("canvas"); oc.width=ow; oc.height=oh; const ox=oc.getContext("2d"); const od=ox.createImageData(ow,oh), o=od.data;
+  for(let y=0;y<oh;y++) for(let x=0;x<ow;x++){
+    const z=M[6]*x+M[7]*y+1, u=(M[0]*x+M[1]*y+M[2])/z, v=(M[3]*x+M[4]*y+M[5])/z;
+    const ui=Math.min(W-1,Math.max(0,u|0)), vi=Math.min(H-1,Math.max(0,v|0)), si=(vi*W+ui)*4, di=(y*ow+x)*4;
+    o[di]=sd[si]; o[di+1]=sd[si+1]; o[di+2]=sd[si+2]; o[di+3]=255; }
+  ox.putImageData(od,0,0);
+  return oc.toDataURL("image/jpeg",0.85);
+}
+/** Écran de découpe : renvoie le JPEG redressé (data URL), "retake" ou null (annulé) */
+function cropCard(img){
+  return new Promise(resolve=>{
+    const W=img.naturalWidth, H=img.naturalHeight;
+    const det=detectQuad(img); let q=det.pts.map(p=>[...p]);
+    const ov=document.createElement("div"); ov.className="cropov";
+    ov.innerHTML=`<div class="crop-top"><button type="button" class="linkbtn" data-a="cancel">Annuler</button><b>Ajuster la carte</b><button type="button" class="linkbtn" data-a="ok" style="text-align:right">Valider</button></div>
+      <div class="crop-stage"><div class="crop-wrap"><canvas></canvas><svg class="crop-svg"><polygon/></svg>${[0,1,2,3].map(i=>`<span class="crop-h" data-h="${i}"></span>`).join("")}</div></div>
+      <div class="crop-help">${det.auto?"Contour détecté : faites glisser les coins si besoin.":"Contour non détecté : placez les 4 coins sur la carte."}</div>
+      <div class="crop-bot"><button type="button" class="btn ghost sm" data-a="retake">Reprendre la photo</button><button type="button" class="btn ghost sm" data-a="full">Photo entière</button><button type="button" class="btn sm" data-a="ok">Valider</button></div>`;
+    document.body.appendChild(ov);
+    const stage=ov.querySelector(".crop-stage"), wrap=ov.querySelector(".crop-wrap"), cv=ov.querySelector("canvas"), poly=ov.querySelector("polygon"), svg=ov.querySelector("svg");
+    let sc=1;
+    const layout=()=>{ const r=stage.getBoundingClientRect(); sc=Math.min(r.width/W, r.height/H); const dw=W*sc, dh=H*sc;
+      wrap.style.width=dw+"px"; wrap.style.height=dh+"px"; cv.width=Math.round(dw*devicePixelRatio); cv.height=Math.round(dh*devicePixelRatio); cv.style.width=dw+"px"; cv.style.height=dh+"px";
+      cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height); svg.setAttribute("width",dw); svg.setAttribute("height",dh); draw(); };
+    const draw=()=>{ poly.setAttribute("points", q.map(([x,y])=>`${x*sc},${y*sc}`).join(" "));
+      ov.querySelectorAll(".crop-h").forEach((h,i)=>{ h.style.left=q[i][0]*sc+"px"; h.style.top=q[i][1]*sc+"px"; }); };
+    let drag=-1;
+    ov.querySelectorAll(".crop-h").forEach(h=>h.addEventListener("pointerdown",e=>{ drag=+h.dataset.h; h.setPointerCapture(e.pointerId); e.preventDefault(); }));
+    ov.addEventListener("pointermove",e=>{ if(drag<0) return; const r=wrap.getBoundingClientRect();
+      q[drag]=[Math.min(W,Math.max(0,(e.clientX-r.left)/sc)), Math.min(H,Math.max(0,(e.clientY-r.top)/sc))]; draw(); });
+    ov.addEventListener("pointerup",()=>{ drag=-1; }); ov.addEventListener("pointercancel",()=>{ drag=-1; });
+    const done=v=>{ window.removeEventListener("resize",layout); ov.remove(); resolve(v); };
+    ov.addEventListener("click",e=>{ const a=e.target.closest("[data-a]")?.dataset.a; if(!a) return;
+      if(a==="cancel") done(null);
+      else if(a==="retake") done("retake");
+      else if(a==="full"){ q=[[0,0],[W,0],[W,H],[0,H]]; draw(); }
+      else if(a==="ok"){ try{ done(warpCard(img,q)); }catch(err){ toast("Découpe impossible : "+err.message); } } });
+    window.addEventListener("resize",layout);
+    requestAnimationFrame(layout);
+  });
+}
+
 /* ---------- 2.11 : scan d'une carte de visite (relais → Workers AI) ---------- */
 /** Ouvre l'appareil photo, réduit la photo, l'envoie au relais ; renvoie les champs lus (ou null) */
 function scanCard(){
@@ -1387,11 +1562,17 @@ function scanCard(){
     inp.style.display="none"; document.body.appendChild(inp);
     inp.onchange=async()=>{
       const f=inp.files?.[0]; inp.remove(); if(!f) return resolve(null);
+      let image;
+      try{
+        const {img,url}=await loadImg(f);
+        image=await cropCard(img); URL.revokeObjectURL(url);   // 2.11.2 : découpe du contour avant l'envoi
+        if(image==="retake") return resolve(await scanCard());
+        if(!image) return resolve(null);
+      }catch(e){ toast(e.message); return resolve(null); }
       toast("Lecture de la carte…");
       try{
-        const image=await shrinkImage(f, 1280, 0.8);
         const r=await relay("/scan/carte",{method:"POST",body:{image, jour:todayYMD()}});
-        if(!r.champs){ toast("Carte illisible : saisissez le contact à la main"); return resolve(null); }
+        if(!r.champs){ console.warn("scan", r.diag||r.brut); toast("Carte illisible : saisissez le contact à la main"+(IS_TEST && (r.diag||r.brut) ? " — test : "+String(r.diag?.resume||r.brut||"").slice(0,160) : "")); return resolve(null); }
         toast(`Carte lue · vérifiez les champs (${r.restants} scan${r.restants>1?"s":""} restant${r.restants>1?"s":""} aujourd'hui)`);
         resolve(r.champs);
       }catch(e){ toast(e.message); resolve(null); }

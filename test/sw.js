@@ -1,7 +1,7 @@
 /* Service worker — fonctionnement hors-ligne de l'application */
 // Prod et test sont sur le même site : chaque version ne gère que ses propres caches
 const ENV_PREFIX = self.registration && /\/test\/$/.test(self.registration.scope) ? "test-" : "";
-const SHELL = ENV_PREFIX + "shell-v2.11.0";
+const SHELL = ENV_PREFIX + "shell-v2.11.2";
 const TILES = "tiles-v1";
 const ASSETS = ["./","index.html","manifest.webmanifest","icon-180.png","icon-192.png","icon-512.png",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css",
@@ -35,7 +35,7 @@ self.addEventListener("fetch", e => {
   }
   // Application : réseau d'abord (mises à jour), cache si hors-ligne
   e.respondWith(fetch(e.request).then(r => {
-    if (r.ok && (url.origin === location.origin || url.hostname === "cdnjs.cloudflare.com")) {
+    if (r.ok && (url.origin === location.origin || url.hostname === "cdnjs.cloudflare.com" || url.hostname === "cdn.jsdelivr.net")) {
       const copy = r.clone(); caches.open(SHELL).then(c => c.put(e.request, copy));
     }
     return r;

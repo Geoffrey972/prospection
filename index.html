@@ -20,7 +20,7 @@
   --accent:#0e4c52; --accent-ink:#ffffff; --accent-soft:#d6ebec; --coral:#e86f3e;
   --st-interested:#7b8794; --st-invite:#2563c9; --st-horscible:#1f2328; --st-callback:#d98a0b; --st-refused:#c93a32; --st-signed:#1f8f4e;
   --notes-bg:#fff6d6; --notes-line:#ecd98f;
-  --od-hors:#16181b; --od-client:#15803d; --od-opp:#ea7a0c; --od-qual:#eab308; --od-connu:#64808c; --od-inconnu:#c0352b;
+  --od-hors:#16181b; --od-client:#15803d; --od-opp:#2563eb; --od-pme:#f97316; --od-strat:#7c3aed; --od-qual:#eab308; --od-connu:#64808c; --od-inconnu:#c0352b;
   --shadow:0 6px 24px rgba(10,40,45,.16);
   color-scheme:light;
 }
@@ -55,6 +55,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 #tabbar button{flex:1;border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;color:var(--muted);position:relative}
 #tabbar button svg{width:24px;height:24px}
 #tabbar button[aria-selected="true"]{color:var(--accent)}
+#north-ico{width:26px;height:26px;transition:transform .1s linear}
 .badge{position:absolute;top:5px;left:calc(50% + 6px);min-width:17px;height:17px;border-radius:9px;background:var(--coral);color:#fff;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px}
 
 h1{font-size:26px;letter-spacing:-.02em;margin:4px 0 12px;text-wrap:balance}
@@ -95,7 +96,23 @@ select.pillsel{appearance:none;-webkit-appearance:none;border:0;background:none;
 .sugg button:last-child{border-bottom:0}
 .sugg button b{display:block;font-weight:600;font-size:14.5px}
 .sugg button span{font-size:12px;color:var(--muted)}
+.cropov{position:fixed;inset:0;z-index:1450;background:#0b1214;color:#fff;display:flex;flex-direction:column;touch-action:none;user-select:none;-webkit-user-select:none}
+.crop-top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 8px}
+.crop-top .linkbtn{color:#7fd3d9;min-width:70px} .crop-top b{font-size:16px}
+.crop-stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:18px}
+.crop-wrap{position:relative}
+.crop-wrap canvas{display:block}
+.crop-svg{position:absolute;inset:0;overflow:visible;pointer-events:none}
+.crop-svg polygon{fill:rgba(127,211,217,.18);stroke:#7fd3d9;stroke-width:2.5}
+.crop-h{position:absolute;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;border:3px solid #7fd3d9;background:rgba(11,18,20,.35);touch-action:none}
+.crop-h::after{content:"";position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:#7fd3d9}
+.crop-help{text-align:center;font-size:13px;color:#b9c7ca;padding:0 16px 6px}
+.crop-bot{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:8px 16px calc(env(safe-area-inset-bottom,0px) + 14px)}
+.crop-bot .btn.ghost{color:#fff;border-color:#3a4a4e;background:transparent}
 .sugg .none{padding:12px 14px;color:var(--muted);font-size:13.5px}
+.sugg .sg-h{padding:8px 14px 4px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);background:var(--surface2)}
+.sugg button b .od-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.sugg{max-height:min(70vh,520px);overflow-y:auto}
 .pin{width:30px;height:38px}
 .more{border:0;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:12px;border-radius:999px;padding:4px 10px;flex:none}
 
@@ -156,8 +173,8 @@ a{color:var(--accent)}
 .stchips button[aria-pressed="true"]{color:#fff;border-color:transparent}
 .stchips [data-s="interested"] i,.stchips [data-s="interested"][aria-pressed="true"]{background:var(--st-interested)}
 .stchips [data-c="horscible"] i,.stchips [data-c="horscible"][aria-pressed="true"]{background:var(--od-hors)}
-.stchips [data-c="pme"] i,.stchips [data-c="pme"][aria-pressed="true"]{background:var(--accent)}
-.stchips [data-c="strategique"] i,.stchips [data-c="strategique"][aria-pressed="true"]{background:#7c3aed}
+.stchips [data-c="pme"] i,.stchips [data-c="pme"][aria-pressed="true"]{background:var(--od-pme)}
+.stchips [data-c="strategique"] i,.stchips [data-c="strategique"][aria-pressed="true"]{background:var(--od-strat)}
 .stchips [data-s="invite"] i,.stchips [data-s="invite"][aria-pressed="true"]{background:var(--st-invite)}
 .stchips [data-s="callback"] i,.stchips [data-s="callback"][aria-pressed="true"]{background:var(--st-callback)}
 .stchips [data-s="refused"] i,.stchips [data-s="refused"][aria-pressed="true"]{background:var(--st-refused)}
@@ -287,6 +304,10 @@ details.equip[open]{padding-bottom:14px}
 #login details{font-size:13.5px;color:var(--muted)}
 #login details summary{cursor:pointer;font-weight:600;color:var(--accent)}
 #login ol{padding-left:20px;margin:8px 0 0}
+.ctrow{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:11px 0;color:var(--ink);font:inherit}
+.ctrow .t{display:block;font-weight:700;font-size:15px}
+.ctrow .s{display:block;font-size:13px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
+.ctrow[aria-pressed="true"] .t::before{content:"✓ ";color:var(--accent)}
 .linkbtn{border:0;background:none;color:var(--accent);font-weight:600;padding:6px 0;text-align:left}
 /* ============ 2.10 : zone, regroupement, cafés, idées ============ */
 .here{align-self:center;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:13.5px;padding:9px 16px;box-shadow:var(--shadow);display:flex;align-items:center;gap:6px}
@@ -302,6 +323,65 @@ details.equip[open]{padding-bottom:14px}
 .idea .r{border-left:3px solid var(--accent);padding-left:8px;font-size:13.5px;white-space:pre-wrap}
 .ist{font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 8px;background:var(--surface2);color:var(--muted)}
 .ist.nouvelle{background:var(--coral);color:#fff} .ist.retenue{background:var(--accent);color:var(--accent-ink)} .ist.livree{background:var(--od-client);color:#fff} .ist.ecartee{background:var(--od-hors);color:#fff}
+/* ============ 2.12 : Phoning ============ */
+.ph-list .t{font-weight:700;font-size:16.5px}
+.ph-list{display:flex;flex-direction:column;gap:8px}
+.ph-bar{height:6px;border-radius:3px;background:var(--surface2);overflow:hidden}.ph-bar span{display:block;height:100%;background:var(--accent);border-radius:3px}
+.ph-nums{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--muted)}.ph-nums b{color:var(--ink)}.ph-nums .due b,.ph-nums .due{color:var(--st-callback)}
+.ph-map{display:flex;flex-direction:column;gap:6px}
+.ph-mr{display:grid;grid-template-columns:minmax(0,1fr) 170px;gap:10px;align-items:center;border-bottom:1px solid var(--line);padding:6px 0}
+.ph-mr small{display:block;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ph-mr select{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 8px}
+.ph-users{max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:4px 8px;background:var(--surface)}
+.ph-u{display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}.ph-u:last-child{border-bottom:0}.ph-u small{display:block;color:var(--muted);font-size:12px}
+.ph-u input{width:20px;height:20px;accent-color:var(--accent)}
+.ph-det{border-bottom:1px solid var(--line);padding:6px 0}.ph-det:last-of-type{border-bottom:0}
+.ph-det summary{display:flex;justify-content:space-between;cursor:pointer;list-style:none}.ph-det summary::-webkit-details-marker{display:none}
+.ph-det .co-sub{max-height:180px;overflow:auto;margin-top:6px;font-size:12.5px}
+.modal.ph-wide .mbody{padding:0}
+@media (min-width:900px){.modal:not(.ph-wide) .mbody > .stack{max-width:820px;margin:0 auto}}
+.ph-sess{display:flex;flex-direction:column-reverse;min-height:100%}
+.ph-q{border-top:1px solid var(--line);padding:10px 12px;background:var(--surface)}
+.ph-main{padding:14px 16px 28px}
+@media (min-width:900px){
+  .ph-sess{display:grid;grid-template-columns:300px minmax(0,1fr);height:100%}
+  .ph-q{border-top:0;border-right:1px solid var(--line);overflow:auto;height:100%}
+  .ph-main{overflow:auto;height:100%;padding:18px 28px 40px}
+  .ph-card{max-width:860px}
+  .ph-acts{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+}
+.ph-qh{font-size:13px;margin-bottom:6px}
+.ph-qi{display:flex;flex-direction:column;align-items:flex-start;width:100%;text-align:left;border:0;border-radius:10px;background:none;padding:7px 8px;gap:1px}
+.ph-qi .t{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}.ph-qi .s{font-size:12px;color:var(--muted)}
+.ph-qi.on{background:var(--accent-soft)}.ph-qi.ph-later{opacity:.75}
+.ph-k{font-size:11px;font-weight:700;border-radius:999px;padding:1px 7px;background:var(--surface2);color:var(--muted)}
+.ph-k.rappel,.ph-k.equipe{background:color-mix(in srgb,var(--st-callback) 20%,var(--surface));color:var(--ink)}.ph-k.mail{background:color-mix(in srgb,var(--st-invite) 18%,var(--surface));color:var(--ink)}
+.ph-card{display:flex;flex-direction:column;gap:12px}
+.ph-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.ph-try{font-size:12px;font-weight:700;color:var(--st-callback);white-space:nowrap}
+.ph-od{font-size:11.5px;font-weight:700;border-radius:999px;padding:1px 8px;background:var(--surface2);color:var(--muted)}.ph-od.connu{background:var(--accent-soft);color:var(--ink)}
+.ph-ban{border-radius:12px;padding:10px 12px;background:color-mix(in srgb,var(--st-callback) 14%,var(--surface));border:1px solid color-mix(in srgb,var(--st-callback) 35%,transparent)}
+.ph-ban.mail{background:color-mix(in srgb,var(--st-invite) 10%,var(--surface));border-color:color-mix(in srgb,var(--st-invite) 30%,transparent)}
+.ph-say{font-style:italic;margin-top:4px}
+.ph-num{display:flex;align-items:center;gap:12px}.ph-num #ph-tel{font-size:30px;font-weight:700;letter-spacing:.02em}
+.ph-hist{font-size:13.5px;display:flex;flex-direction:column;gap:3px}
+.ph-info summary{cursor:pointer;color:var(--muted);font-size:13px}.ph-info div{font-size:13.5px;margin-top:4px}
+label.f textarea.ph-note{min-height:64px}
+.ph-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ph-acts .btn,.ph-motifs .btn{height:auto;min-height:52px;flex-direction:column;gap:1px;padding:6px 8px}
+.ph-acts small,.ph-motifs small{font-size:11.5px;font-weight:500;opacity:.8}
+.ph-acts .btn.on{outline:2px solid var(--accent)}
+.ph-acts .ok-t{color:var(--st-signed)}.ph-acts .danger-t{color:var(--st-refused)}
+.ph-pan{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--surface);margin-top:4px}
+.ph-pan.warn{background:color-mix(in srgb,var(--st-callback) 14%,var(--surface))}
+.ph-motifs{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:8px}
+.ph-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.ph-opt{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:6px;color:var(--ink);font-weight:400;font-size:14px;background:var(--surface)}
+.ph-opt input{margin-top:3px;width:18px;height:18px;accent-color:var(--accent);flex:none}.ph-opt small{display:block;color:var(--muted);font-size:12.5px}
+.ph-tpls{display:flex;flex-direction:column}
+.ph-prev{border:1px dashed var(--line);border-radius:10px;padding:8px 10px;font-size:13.5px}.ph-prev .b{white-space:pre-wrap;margin-top:4px;color:var(--muted);max-height:180px;overflow:auto}
+.ph-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px}
+.ph-tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column}.ph-tile span{font-size:12.5px;color:var(--muted)}.ph-tile b{font-size:22px}.ph-tile b.ok{color:var(--st-signed)}
 </style>
 </head>
 <body>
@@ -314,7 +394,7 @@ details.equip[open]{padding-bottom:14px}
     <div class="map-top">
       <div class="addr" id="addr">
         <div class="pill"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7m0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5"/></svg>
-          <input id="addr-q" type="search" placeholder="Prospecter autour d'une adresse…" autocomplete="off" autocorrect="off" enterkeyhint="search" aria-label="Adresse">
+          <input id="addr-q" type="search" placeholder="Adresse ou entreprise…" autocomplete="off" autocorrect="off" enterkeyhint="search" aria-label="Adresse ou entreprise">
           <button class="addr-x" id="addr-clear" hidden aria-label="Revenir à ma position">×</button></div>
         <div class="sugg" id="addr-sugg" hidden></div>
       </div>
@@ -332,6 +412,7 @@ details.equip[open]{padding-bottom:14px}
       <button class="here" id="btn-here" hidden><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Rechercher dans cette zone</button>
     </div>
     <div class="fabs">
+      <button class="iconbtn fab" id="btn-north" hidden aria-label="Remettre le nord en haut"><svg viewBox="0 0 24 24" id="north-ico"><path d="M12 2.5 17 12h-10z" fill="#c0352b"/><path d="M12 21.5 7 12h10z" fill="currentColor" opacity=".45"/><text x="12" y="11" text-anchor="middle" font-size="5.5" font-weight="800" fill="#fff" font-family="system-ui,sans-serif">N</text></svg></button>
       <button class="iconbtn fab" id="btn-cafe" aria-label="Cafés, snacks et stations-service à proximité"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h12v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M8 3c0 1.5 1 1.5 1 3M12 3c0 1.5 1 1.5 1 3"/></svg></button>
       <button class="iconbtn fab" id="btn-legend" aria-label="Légende et filtres"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 5h16l-6 7v6l-4 2v-8z"/></svg></button>
       <button class="iconbtn fab" id="btn-list" aria-label="Liste des entreprises proches"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
@@ -355,6 +436,13 @@ details.equip[open]{padding-bottom:14px}
     <div class="list" id="call-list"></div>
   </section>
 
+  <!-- ======= 2.12 : Écran Phoning ======= -->
+  <section class="screen pad" id="scr-phoning" hidden>
+    <h1>Phoning</h1>
+    <div class="row" style="margin-bottom:12px"><button class="btn sm" id="ph-import">Importer une liste</button><button class="btn ghost sm" id="ph-mailtodo" hidden>Mails à faire</button><span style="flex:1"></span><button class="linkbtn" id="ph-arch">Listes archivées</button></div>
+    <div class="list" id="ph-lists"></div>
+  </section>
+
   <!-- ======= Écran Réglages ======= -->
   <section class="screen pad" id="scr-settings" hidden>
     <h1>Réglages</h1>
@@ -367,6 +455,11 @@ details.equip[open]{padding-bottom:14px}
     </div>
     <h2>Compte Odoo</h2>
     <div class="card stack" id="odoo-card"></div>
+    <h2 id="adm-h" hidden>Administration</h2>
+    <div class="card stack" id="adm-card" hidden>
+      <div class="co-sub" id="adm-txt">Rôles, rapprochement SIREN, groupes, mails types et liste noire du phoning.</div>
+      <a class="btn block" id="btn-admin" href="#" target="_blank" rel="noopener">Ouvrir l'administration</a>
+    </div>
     <h2>Recherche</h2>
     <div class="card">
       <label class="toggle"><span>Employeurs uniquement<small>Masque les entreprises sans salarié déclaré</small></span><input type="checkbox" id="set-employers"></label>
@@ -408,6 +501,7 @@ details.equip[open]{padding-bottom:14px}
   <button role="tab" data-tab="map" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>Carte</button>
   <button role="tab" data-tab="visits"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Visites</button>
   <button role="tab" data-tab="calls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>Rappels<span class="badge" id="call-badge" hidden></span></button>
+  <button role="tab" data-tab="phoning"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/><path d="M19 20a3 3 0 0 1-3 2h-3"/></svg>Phoning<span class="badge" id="ph-badge" hidden></span></button>
   <button role="tab" data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Réglages<span class="badge" id="set-badge" hidden></span></button>
 </nav>
 
@@ -444,6 +538,7 @@ details.equip[open]{padding-bottom:14px}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script><!-- 2.11.1 : rotation à deux doigts (facultatif : l'app fonctionne sans) -->
 <script>
 "use strict";
 /* =====================================================================
@@ -453,7 +548,7 @@ details.equip[open]{padding-bottom:14px}
    - Carte : Leaflet + OpenStreetMap
    - Stockage : IndexedDB sur l'appareil (aucun serveur)
    ===================================================================== */
-const VERSION = "2.10.1";
+const VERSION = "2.13.0";
 /* Environnement : l'app servie dans un dossier /test/ parle au relais de test et garde ses propres données */
 const IS_TEST = /\/test\//.test(location.pathname);
 /** Stockage local : en test, toutes les clés sont préfixées (même site que la prod) */
@@ -616,9 +711,13 @@ function lastVisitMap(){ const m=new Map(); for(const v of visits){ const cur=m.
 async function apiGet(path, params){
   const u = new URL(API+path);
   Object.entries(params).forEach(([k,v])=>{ if(v!==""&&v!=null) u.searchParams.set(k,v); });
-  for(let attempt=0; attempt<3; attempt++){
-    const r = await fetch(u, {headers:{Accept:"application/json"}});
-    if(r.status===429){ await sleep(1200*(attempt+1)); continue; }
+  // 2.10.2 : la limite de débit de l'API (≈ 7 appels/s) renvoie parfois une réponse sans en-tête CORS,
+  // que le navigateur présente comme « Failed to fetch » → même traitement qu'un 429 (attente puis nouvel essai)
+  for(let attempt=0; attempt<4; attempt++){
+    let r;
+    try{ r = await fetch(u, {headers:{Accept:"application/json"}}); }
+    catch(e){ if(!navigator.onLine) throw new Error("hors ligne"); await sleep(1500*(attempt+1)); continue; }
+    if(r.status===429 || r.status===503){ await sleep(1500*(attempt+1)); continue; }
     if(!r.ok) throw new Error("API "+r.status);
     return r.json();
   }
@@ -681,8 +780,39 @@ let companies = new Map();   // siret -> fiche
 let lastQuery = null;        // {lat,lng,radius,sector,page,totalPages,total}
 let watching = false;
 
+/* 2.11.1 — Rotation de la carte à deux doigts (plugin leaflet-rotate)
+   Seuil de 15° : un simple pincement pour zoomer ne fait pas tourner la carte.
+   Bouton boussole (au-dessus des boutons de droite) visible dès que le nord n'est plus en haut : un toucher le remet. */
+const ROTATE_THRESHOLD = 15;
+function setupRotation(){
+  const tg = map.touchGestures;
+  if(tg && tg._onTouchMove && !tg._thrPatched){
+    const was = tg.enabled(); if(was) tg.disable();   // retire l'écouteur d'origine avant de remplacer la fonction
+    const start = tg._onTouchStart, move = tg._onTouchMove;
+    tg._onTouchStart = function(e){ this._rotUnlocked = false; return start.call(this, e); };
+    tg._onTouchMove = function(e){
+      if(this._rotating && !this._rotUnlocked && e.touches && e.touches.length===2){
+        const p1=map.mouseEventToContainerPoint(e.touches[0]), p2=map.mouseEventToContainerPoint(e.touches[1]), v=p1.subtract(p2);
+        let d=(Math.atan(v.x/v.y) - this._startTheta) * 180/Math.PI; if(v.y<0) d+=180;
+        d = ((d+540)%360)-180;   // ramené entre -180 et 180
+        if(Math.abs(d) < ROTATE_THRESHOLD){ this._rotating=false; try{ return move.call(this, e); } finally{ this._rotating=true; } }
+        this._rotUnlocked = true; this._startBearing += d;   // départ sans à-coup depuis l'angle atteint
+      }
+      return move.call(this, e);
+    };
+    tg._thrPatched = true;
+    if(was) tg.enable();
+  }
+  const btn=$("#btn-north"), ico=$("#north-ico");
+  const upd=()=>{ const b=map.getBearing()||0; const off=Math.abs(((b%360)+360)%360)>0.5 && Math.abs(((b%360)+360)%360-360)>0.5; btn.hidden=!off; ico.style.transform=`rotate(${-b}deg)`; };
+  map.on("rotate", upd);
+  btn.onclick=()=>{ map.setBearing(0); upd(); };
+  upd();
+}
 function initMap(){
-  map = L.map("map",{zoomControl:false, attributionControl:true, tap:false}).setView([14.6415,-61.0242], 11);
+  const canRotate = !!(L.Map.prototype.setBearing);
+  map = L.map("map",{zoomControl:false, attributionControl:true, tap:false, ...(canRotate?{rotate:true, touchRotate:true, rotateControl:false, shiftKeyRotate:true, bearing:0}:{})}).setView([14.6415,-61.0242], 11);
+  if(canRotate) setupRotation();
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19, attribution:"© OpenStreetMap"}).addTo(map);
   layer = L.layerGroup().addTo(map);
   cafeLayer = L.layerGroup().addTo(map);
@@ -733,11 +863,15 @@ async function search(more=false){
         }
       }
       if(i%2===1 || i===pagesToLoad-1 || lastQuery.page>=lastQuery.totalPages) { drawMarkers(); odooRefreshStatus(); }
-      if(i<pagesToLoad-1) await sleep(180);
+      if(i<pagesToLoad-1) await sleep(400);   // ≈ 2,5 appels/s : sous la limite de l'API
     }
     try{ LS.setItem("lastSearch", JSON.stringify({q:lastQuery, items:[...companies.values()]})); }catch(e){}
     sharedRefresh(true); drawMarkers(); odooRefreshStatus(); updateHere(); if(settings.cafes) loadCafes();
-  }catch(e){ toast("Recherche impossible : "+e.message); drawMarkers(); }
+  }catch(e){
+    drawMarkers();
+    if(companies.size){ toast("Chargement interrompu : touchez +100 pour la suite"); $("#btn-more").hidden=false; try{ LS.setItem("lastSearch", JSON.stringify({q:lastQuery, items:[...companies.values()]})); }catch(err){} }
+    else toast("Recherche impossible ("+e.message+"), réessayez avec le bouton ↻");
+  }
   finally{ btn.classList.remove("spin"); prog.style.width="0"; setTimeout(()=>prog.style.width="0",300); }
 }
 
@@ -746,10 +880,11 @@ function flagIcon(status){
   return L.divIcon({className:"",iconSize:[26,30],iconAnchor:[4,29],html:`<svg class="flag" viewBox="0 0 26 30"><path d="M4 29V2" stroke="#fff" stroke-width="4" stroke-linecap="round"/><path d="M4 29V2" stroke="#12242a" stroke-width="2" stroke-linecap="round"/><path d="M5 3h17l-4 5 4 5H5z" fill="${col}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>`});
 }
 /* ---------- Marqueurs V2.1 : un rond coloré pour toutes les entreprises ----------
-   Vert = client · Orange = opportunité en cours · Jaune = prospect qualifié (visité + équipement renseigné)
+   2.11 : Vert = client · Bleu = opportunité en cours · Violet = Compte stratégique · Orange = PME · Noir = hors cible
+   Jaune = prospect qualifié (visité + équipement renseigné, sans cible)
    Rouge = prospect (non rattaché / sans opportunité) · Gris = statut Odoo en cours de chargement
    Point blanc au centre = déjà visitée · Montre = un contrat se termine dans 6 mois ou moins */
-const CAT_VAR = {horscible:"--od-hors", client:"--od-client", opportunite:"--od-opp", qualifie:"--od-qual", prospect:"--od-inconnu", pending:"--od-connu"};
+const CAT_VAR = {horscible:"--od-hors", client:"--od-client", opportunite:"--od-opp", strategique:"--od-strat", pme:"--od-pme", qualifie:"--od-qual", prospect:"--od-inconnu", pending:"--od-connu"};
 const iconCache = {};
 /** Rond coloré ; big = 10 salariés ou plus (plus gros) ; n = entreprises empilées au même endroit (badge) */
 function markerIcon(cat, visited, clock, big=false, n=1){
@@ -780,7 +915,10 @@ function markerCat(c, lv){
   const od = odooState(c);
   if(od==="client") return "client";
   if(od==="opportunite") return "opportunite";
-  if(cibleOf(c, lv)==="horscible") return "horscible";
+  const cb = cibleOf(c, lv);
+  if(cb==="strategique") return "strategique";
+  if(cb==="pme") return "pme";
+  if(cb==="horscible") return "horscible";
   if(lv && hasEquip(keyOf(c))) return "qualifie";
   if(od==="pending") return "pending";
   return "prospect";
@@ -791,8 +929,8 @@ function markerCat(c, lv){
       Le point affiché est le plus important : client / opportunité, puis 10 salariés ou plus, puis le reste (hors cible en dernier).
    2. Au dézoom (zoom < CLUSTER_ZOOM), les points proches sont regroupés en bulles avec un nombre ; toucher = zoomer. */
 const CLUSTER_ZOOM = 16, CLUSTER_PX = 54;
-const CAT_RANK = {client:0, opportunite:1, qualifie:3, prospect:4, pending:4, horscible:6};
-function itemRank(x){ if(x.cat==="client"||x.cat==="opportunite") return CAT_RANK[x.cat]; if(x.cat==="horscible") return 6; return x.big ? 2 : CAT_RANK[x.cat] ?? 4; }
+const CAT_RANK = {client:0, opportunite:1, strategique:2, pme:2.5, qualifie:3, prospect:4, pending:4, horscible:6};
+function itemRank(x){ if(x.cat==="client"||x.cat==="opportunite") return CAT_RANK[x.cat]; if(x.cat==="horscible") return 6; const r = CAT_RANK[x.cat] ?? 4; return x.big ? 1.5 + r/10 : r; }   // ≥ 10 salariés juste après client / opportunité
 function sortItems(arr){ return arr.sort((a,b)=> itemRank(a)-itemRank(b) || effRank(b.c)-effRank(a.c) || (a.c.name||"").localeCompare(b.c.name||"")); }
 let mapItems = [];   // dernière liste affichée (piles)
 function drawMarkers(){
@@ -841,7 +979,7 @@ function drawMarkers(){
 }
 function addStackMarker(st){
   const top = st[0], c = top.c;
-  const zi = top.cat==="client"||top.cat==="opportunite" ? 400 : top.big ? 350 : top.cat==="qualifie" ? 300 : top.lv ? 200 : top.cat==="horscible" ? -50 : 0;
+  const zi = top.cat==="client"||top.cat==="opportunite" ? 400 : top.big ? 350 : top.cat==="strategique" ? 330 : top.cat==="pme" ? 310 : top.cat==="qualifie" ? 300 : top.lv ? 200 : top.cat==="horscible" ? -50 : 0;
   const m = L.marker([c.lat,c.lng],{icon: markerIcon(top.cat, !!top.lv, top.clock, top.big, st.length), zIndexOffset: zi + (st.length>1?20:0), title: st.length>1 ? `${c.name} et ${st.length-1} autre${st.length>2?"s":""}` : c.name});
   m.on("click",()=> st.length>1 ? openStack(st) : (c.manual ? openManual(c) : openCompany(c)));
   layer.addLayer(m);
@@ -909,22 +1047,49 @@ function clearAnchor(){
   $("#addr-q").value = ""; $("#addr-clear").hidden = true; $("#addr").classList.remove("on"); $("#addr-sugg").hidden = true;
 }
 (()=>{
+  /* 2.11.1 : la barre cherche aussi les entreprises (déjà chargées sur la carte, puis base publique du territoire) */
   const inp=$("#addr-q"), box=$("#addr-sugg"); let tm, items=[], seq=0;
-  async function suggest(){
-    const q=inp.value.trim(); if(q.length<3){ box.hidden=true; return; }
-    const my=++seq; const ref=pos||map.getCenter();
-    try{
-      const u=`${GEO_SEARCH}?q=${encodeURIComponent(q)}&limit=15&autocomplete=1&lat=${ref.lat.toFixed(5)}&lon=${ref.lng.toFixed(5)}`;
-      const j=await (await fetch(u)).json(); if(my!==seq) return;
-      let f=(j.features||[]).filter(x=>x.geometry?.coordinates);
-      // Priorité au territoire choisi dans les réglages
-      if(settings.dept){ const loc=f.filter(x=>(x.properties.postcode||x.properties.citycode||"").startsWith(settings.dept)); if(loc.length) f=loc; }
-      items=f.slice(0,6);
-      box.innerHTML = items.length ? items.map((x,i)=>`<button type="button" data-i="${i}"><b>${esc(x.properties.label)}</b><span>${esc(x.properties.context||"")}</span></button>`).join("") : `<div class="none">Aucune adresse trouvée</div>`;
-      box.hidden=false;
-    }catch(e){ if(my===seq){ box.innerHTML=`<div class="none">${navigator.onLine?"Recherche d'adresse indisponible":"Hors ligne"}</div>`; box.hidden=false; } }
+  const nq = x => String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+  function render(addrs, cos, pendingCo){
+    const coFirst = !/^\d/.test(inp.value.trim());   // « 12 rue… » : adresses d'abord
+    items = coFirst ? [...cos.map(c=>({t:"co",c})), ...addrs.map(a=>({t:"ad",a}))] : [...addrs.map(a=>({t:"ad",a})), ...cos.map(c=>({t:"co",c}))];
+    const coHtml = cos.length ? `<div class="sg-h">Entreprises</div>` + cos.map(c=>{ const i=items.findIndex(x=>x.c===c); const cat=markerCat(c, lastVisitMap().get(keyOf(c)));
+        return `<button type="button" data-i="${i}"><b><i class="od-dot" style="background:var(${CAT_VAR[cat]})"></i>${esc(c.name)}</b><span>${esc(c.address||"")}</span></button>`; }).join("")
+      : pendingCo ? `<div class="sg-h">Entreprises</div><div class="none">Recherche…</div>` : "";
+    const adHtml = addrs.length ? `<div class="sg-h">Adresses</div>` + addrs.map(a=>`<button type="button" data-i="${items.findIndex(x=>x.a===a)}"><b>${esc(a.properties.label)}</b><span>${esc(a.properties.context||"")}</span></button>`).join("") : "";
+    box.innerHTML = (coFirst ? coHtml+adHtml : adHtml+coHtml) || `<div class="none">Aucune adresse ni entreprise trouvée</div>`;
+    box.hidden=false;
   }
-  function pick(i){ const x=items[i]; if(!x) return; const [lng,lat]=x.geometry.coordinates; setAnchor(lat,lng,x.properties.label); }
+  async function suggest(){
+    const q=inp.value.trim(); if(q.length<3){ box.hidden=true; items=[]; return; }
+    const my=++seq; const ref=pos||map.getCenter();
+    // 1. Entreprises déjà chargées (immédiat, marche hors ligne)
+    const words=nq(q).split(/\s+/).filter(Boolean);
+    const local=[...companies.values()].filter(c=>{ const h=nq((c.name||"")+" "+(c.legalName||"")); return words.every(w=>h.includes(w)); })
+      .sort((a,b)=>distance(ref,a)-distance(ref,b)).slice(0,4);
+    let addrs=[], cos=local; render(addrs, cos, navigator.onLine);
+    const geo = (async()=>{ try{
+        const u=`${GEO_SEARCH}?q=${encodeURIComponent(q)}&limit=15&autocomplete=1&lat=${ref.lat.toFixed(5)}&lon=${ref.lng.toFixed(5)}`;
+        const j=await (await fetch(u)).json(); let f=(j.features||[]).filter(x=>x.geometry?.coordinates);
+        if(settings.dept){ const loc=f.filter(x=>(x.properties.postcode||x.properties.citycode||"").startsWith(settings.dept)); if(loc.length) f=loc; }
+        addrs=f.slice(0,4); if(my===seq) render(addrs, cos, true);
+      }catch(e){} })();
+    // 2. Base publique (territoire des réglages), noms et enseignes
+    const pub = (async()=>{ if(!navigator.onLine) return; try{
+        const d=await apiGet("/search",{q, departement:settings.dept, per_page:6, limite_matching_etablissements:3, etat_administratif:"A"});
+        const seen=new Set(cos.map(keyOf));
+        for(const ul of d.results||[]){ const et=(ul.matching_etablissements||[]).find(e=>e.etat_administratif==="A")||ul.siege; const c=normalize(ul,et);
+          if(!c.diffusible || isNaN(c.lat) || seen.has(keyOf(c))) continue; const known=companies.get(c.siret); cos.push(known||c); seen.add(keyOf(c)); if(cos.length>=6) break; }
+        if(my===seq) render(addrs, cos, false);
+      }catch(e){} })();
+    await Promise.all([geo, pub]);
+    if(my===seq) render(addrs, cos, false);
+  }
+  function pick(i){ const x=items[i]; if(!x) return;
+    if(x.t==="ad"){ const [lng,lat]=x.a.geometry.coordinates; setAnchor(lat,lng,x.a.properties.label); return; }
+    const c=x.c; box.hidden=true; inp.value=anchor?anchor.label:""; inp.blur();
+    if(!companies.has(c.siret)) companies.set(c.siret,c);
+    map.setView([c.lat,c.lng],17); drawMarkers(); odooRefreshStatus(); openCompany(c); }
   inp.addEventListener("input",()=>{ clearTimeout(tm); tm=setTimeout(suggest,300); });
   inp.addEventListener("focus",()=>{ if(anchor) inp.select(); });
   inp.addEventListener("keydown",async e=>{ if(e.key==="Enter"){ e.preventDefault(); clearTimeout(tm); if(!items.length||box.hidden) await suggest(); pick(0); } });
@@ -1301,12 +1466,210 @@ function equipDetail(e){
     return `<dt>${f.label}</dt><dd>${val}</dd>`; }).join("")}</dl></div>`).join("")}</div></div>`;
 }
 
+/* ---------- 2.11 : catégories d'agenda Odoo pour les RDV (DEC par défaut) ---------- */
+let rdvCats = null;
+async function loadRdvCats(){
+  if(rdvCats && Date.now()-rdvCats.at < 6*3600e3) return rdvCats;
+  let c=null; try{ c=JSON.parse(LS.getItem("rdvCats")||"null"); }catch(e){}
+  if(c && Date.now()-c.at < 6*3600e3) return rdvCats=c;
+  if(odooAuth && navigator.onLine){
+    try{ const j=await relay("/odoo/rdv/categories"); c={categories:j.categories||[], defaut:j.defaut||null, at:Date.now()}; try{ LS.setItem("rdvCats", JSON.stringify(c)); }catch(e){} }
+    catch(e){ /* on garde le cache, même ancien */ }
+  }
+  return rdvCats = c || {categories:[], defaut:null, at:0};
+}
+const rdvCatField = (id) => `<label class="f">Catégorie d'agenda<select id="${id}"><option value="">${odooAuth?"Chargement…":"Catégorie par défaut (DEC)"}</option></select></label>`;
+/** Remplit la liste déroulante ; valeur "" = catégorie par défaut côté relais (DEC), "0" = sans catégorie */
+async function fillRdvCat(id, cur){
+  const c=await loadRdvCats(); const el=document.getElementById(id); if(!el) return;
+  const list=c.categories||[];
+  if(!list.length){ el.innerHTML=`<option value="">Catégorie par défaut (DEC)</option>`; return; }
+  const v=String(cur||c.defaut||"");
+  el.innerHTML=list.map(x=>`<option value="${x.id}" ${String(x.id)===v?"selected":""}>${esc(x.name)}</option>`).join("")+`<option value="0" ${v==="0"?"selected":""}>(sans catégorie)</option>`;
+}
+const rdvCatVal = (id) => { const x=document.getElementById(id)?.value; return x==="0" ? 0 : (+x||null); };
+
+/* ---------- 2.11 : contacts connus d'une entreprise (Odoo + visites) ---------- */
+const ctNorm = s => String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+/** Tous les contacts Odoo de la société + contacts saisis aux visites (sans doublon). Le premier = contact de la dernière visite. */
+async function knownContacts(c){
+  const out=[], byName=new Map();
+  const add = (x, src) => {
+    const name=String(x.name||"").trim(); if(!name) return;
+    const k=ctNorm(name); let e=byName.get(k);
+    if(!e && x.email) e=out.find(o=>o.email && o.email.toLowerCase()===String(x.email).toLowerCase());
+    if(!e){ e={id:null, name, role:"", phone:"", mobile:"", email:"", src:new Set(), last:""}; out.push(e); byName.set(k,e); }
+    if(x.id && !e.id) e.id=x.id;
+    e.role = e.role || x.function || x.role || "";
+    e.phone = e.phone || x.phone || ""; e.mobile = e.mobile || x.mobile || "";
+    e.email = e.email || x.email || "";
+    e.src.add(src); if(x.date && x.date>e.last) e.last=x.date;
+  };
+  // 1. Visites : celles du téléphone et le journal partagé de l'équipe
+  const k=keyOf(c);
+  for(const v of visitsFor(k)) add({name:v.contactName, role:v.contactRole, phone:v.contactPhone, email:v.contactEmail, date:v.date}, "visite");
+  if(odooAuth && navigator.onLine){ try{ const sh=(await relay("/visites/history",{method:"POST",body:identOf(c)})).visits||[]; for(const v of sh) add({...(v.contact||{}), date:v.date}, "visite"); }catch(e){} }
+  // 2. Odoo : tous les contacts de la fiche
+  let standard="";
+  const pid=partnerIdOf(c);
+  if(pid){
+    let d = F && F.detail && F.detail.id===pid ? F.detail : null;
+    const ck="odf:"+pid;
+    if(!d){ try{ d=JSON.parse(LS.getItem(ck)||"null")?.d||null; }catch(e){} }
+    if(navigator.onLine && odooAuth && (!d || !(F && F.detail===d))){ try{ d=await relay("/odoo/societe/"+pid); try{ LS.setItem(ck, JSON.stringify({at:Date.now(), d})); }catch(e){} }catch(e){} }
+    if(d){ for(const x of d.contacts||[]) add(x, "odoo"); standard = d.phone || d.mobile || ""; }
+  }
+  // Dernier contact de visite en premier, puis ordre alphabétique
+  const lastV = out.filter(e=>e.last).sort((a,b)=>b.last.localeCompare(a.last))[0] || null;
+  const rest = out.filter(e=>e!==lastV).sort((a,b)=>a.name.localeCompare(b.name,"fr"));
+  return {list: lastV ? [lastV, ...rest] : rest, last: lastV, standard, pid};
+}
+const ctPhone = e => e.mobile || e.phone || "";
+
+/* ---------- 2.11.2 : découpe de la carte de visite (contour détecté + coins réglables + redressement) ----------
+   1. Détection automatique : image réduite à ~320 px, seuil d'Otsu (carte claire sur fond plus sombre, ou l'inverse),
+      plus grande zone d'un seul tenant, coins = points extrêmes selon les diagonales.
+   2. Écran de réglage : 4 poignées à faire glisser ; « Valider » redresse la carte (perspective) en rectangle. */
+function loadImg(file){ return new Promise((ok,ko)=>{ const url=URL.createObjectURL(file), img=new Image(); img.onload=()=>ok({img,url}); img.onerror=()=>{ URL.revokeObjectURL(url); ko(new Error("Photo illisible")); }; img.src=url; }); }
+function detectQuad(img){
+  const W=img.naturalWidth||img.width, H=img.naturalHeight||img.height, s=Math.min(1, 320/Math.max(W,H));
+  const w=Math.max(8,Math.round(W*s)), h=Math.max(8,Math.round(H*s));
+  const cv=document.createElement("canvas"); cv.width=w; cv.height=h; const cx=cv.getContext("2d",{willReadFrequently:true}); cx.drawImage(img,0,0,w,h);
+  const d=cx.getImageData(0,0,w,h).data, g=new Uint8Array(w*h), hist=new Array(256).fill(0);
+  for(let i=0;i<w*h;i++){ const v=(d[i*4]*0.299+d[i*4+1]*0.587+d[i*4+2]*0.114)|0; g[i]=v; hist[v]++; }
+  // Otsu
+  let sum=0; for(let i=0;i<256;i++) sum+=i*hist[i];
+  let sB=0, wB=0, best=0, thr=128; const tot=w*h;
+  for(let t=0;t<256;t++){ wB+=hist[t]; if(!wB) continue; const wF=tot-wB; if(!wF) break; sB+=t*hist[t]; const mB=sB/wB, mF=(sum-sB)/wF, v=wB*wF*(mB-mF)**2; if(v>best){ best=v; thr=t; } }
+  const def = {pts:[[0.08,0.12],[0.92,0.12],[0.92,0.88],[0.08,0.88]].map(([x,y])=>[x*W,y*H]), auto:false};
+  // La carte = la classe qui ne touche pas (ou le moins) les bords de l'image
+  let edgeBright=0, edgeN=0; for(let x=0;x<w;x++){ for(const y of [0,h-1]){ edgeN++; if(g[y*w+x]>thr) edgeBright++; } } for(let y=0;y<h;y++){ for(const x of [0,w-1]){ edgeN++; if(g[y*w+x]>thr) edgeBright++; } }
+  const cardBright = edgeBright/edgeN < 0.5;
+  const m=new Uint8Array(w*h); for(let i=0;i<w*h;i++) m[i] = cardBright ? (g[i]>thr) : (g[i]<=thr);
+  // plus grande composante connexe
+  const lab=new Int32Array(w*h).fill(-1); let bestN=0, bestL=-1; const st=[];
+  for(let i=0;i<w*h;i++){ if(!m[i]||lab[i]>=0) continue; let n=0; st.push(i); lab[i]=i;
+    while(st.length){ const p=st.pop(); n++; const x=p%w, y=(p/w)|0;
+      if(x>0&&m[p-1]&&lab[p-1]<0){lab[p-1]=i;st.push(p-1);} if(x<w-1&&m[p+1]&&lab[p+1]<0){lab[p+1]=i;st.push(p+1);}
+      if(y>0&&m[p-w]&&lab[p-w]<0){lab[p-w]=i;st.push(p-w);} if(y<h-1&&m[p+w]&&lab[p+w]<0){lab[p+w]=i;st.push(p+w);} }
+    if(n>bestN){ bestN=n; bestL=i; } }
+  if(bestN < w*h*0.08 || bestN > w*h*0.97) return def;   // rien de net : cadre par défaut
+  let tl=null,tr=null,br=null,bl=null, a=1e9,b=-1e9,c=-1e9,e=-1e9;
+  for(let i=0;i<w*h;i++){ if(lab[i]!==bestL) continue; const x=i%w, y=(i/w)|0;
+    if(x+y<a){a=x+y;tl=[x,y];} if(x-y>b){b=x-y;tr=[x,y];} if(x+y>c){c=x+y;br=[x,y];} if(y-x>e){e=y-x;bl=[x,y];} }
+  const pts=[tl,tr,br,bl].map(([x,y])=>[x/s,y/s]);
+  const area = Math.abs(((pts[0][0]*pts[1][1]-pts[1][0]*pts[0][1])+(pts[1][0]*pts[2][1]-pts[2][0]*pts[1][1])+(pts[2][0]*pts[3][1]-pts[3][0]*pts[2][1])+(pts[3][0]*pts[0][1]-pts[0][0]*pts[3][1]))/2);
+  if(area < W*H*0.08) return def;
+  return {pts, auto:true};
+}
+/** Homographie : 4 points (u,v) → (x,y) */
+function homography(src, dst){
+  const A=[], B=[];
+  for(let i=0;i<4;i++){ const [x,y]=src[i], [u,v]=dst[i];
+    A.push([x,y,1,0,0,0,-u*x,-u*y]); B.push(u); A.push([0,0,0,x,y,1,-v*x,-v*y]); B.push(v); }
+  // Gauss
+  const n=8; for(let i=0;i<n;i++){ let p=i; for(let r=i+1;r<n;r++) if(Math.abs(A[r][i])>Math.abs(A[p][i])) p=r; [A[i],A[p]]=[A[p],A[i]]; [B[i],B[p]]=[B[p],B[i]];
+    for(let r=0;r<n;r++){ if(r===i) continue; const f=A[r][i]/A[i][i]; for(let k=i;k<n;k++) A[r][k]-=f*A[i][k]; B[r]-=f*B[i]; } }
+  const hh=B.map((v,i)=>v/A[i][i]); return [...hh,1];
+}
+function warpCard(img, q, maxSide=1280){
+  const dist=(p,r)=>Math.hypot(p[0]-r[0],p[1]-r[1]);
+  let ow=Math.max(dist(q[0],q[1]),dist(q[3],q[2])), oh=Math.max(dist(q[0],q[3]),dist(q[1],q[2]));
+  const k=Math.min(1, maxSide/Math.max(ow,oh)); ow=Math.max(16,Math.round(ow*k)); oh=Math.max(16,Math.round(oh*k));
+  // source limitée à 2400 px (mémoire des iPhone, limite de taille des canvas)
+  const W0=img.naturalWidth||img.width, H0=img.naturalHeight||img.height, f=Math.min(1, 2400/Math.max(W0,H0));
+  const W=Math.round(W0*f), H=Math.round(H0*f); q=q.map(([x,y])=>[x*f,y*f]);
+  const sc=document.createElement("canvas"); sc.width=W; sc.height=H; const sx=sc.getContext("2d",{willReadFrequently:true}); sx.drawImage(img,0,0,W,H);
+  const sd=sx.getImageData(0,0,W,H).data;
+  const M=homography([[0,0],[ow,0],[ow,oh],[0,oh]], q);   // destination → source
+  const oc=document.createElement("canvas"); oc.width=ow; oc.height=oh; const ox=oc.getContext("2d"); const od=ox.createImageData(ow,oh), o=od.data;
+  for(let y=0;y<oh;y++) for(let x=0;x<ow;x++){
+    const z=M[6]*x+M[7]*y+1, u=(M[0]*x+M[1]*y+M[2])/z, v=(M[3]*x+M[4]*y+M[5])/z;
+    const ui=Math.min(W-1,Math.max(0,u|0)), vi=Math.min(H-1,Math.max(0,v|0)), si=(vi*W+ui)*4, di=(y*ow+x)*4;
+    o[di]=sd[si]; o[di+1]=sd[si+1]; o[di+2]=sd[si+2]; o[di+3]=255; }
+  ox.putImageData(od,0,0);
+  return oc.toDataURL("image/jpeg",0.85);
+}
+/** Écran de découpe : renvoie le JPEG redressé (data URL), "retake" ou null (annulé) */
+function cropCard(img){
+  return new Promise(resolve=>{
+    const W=img.naturalWidth, H=img.naturalHeight;
+    const det=detectQuad(img); let q=det.pts.map(p=>[...p]);
+    const ov=document.createElement("div"); ov.className="cropov";
+    ov.innerHTML=`<div class="crop-top"><button type="button" class="linkbtn" data-a="cancel">Annuler</button><b>Ajuster la carte</b><button type="button" class="linkbtn" data-a="ok" style="text-align:right">Valider</button></div>
+      <div class="crop-stage"><div class="crop-wrap"><canvas></canvas><svg class="crop-svg"><polygon/></svg>${[0,1,2,3].map(i=>`<span class="crop-h" data-h="${i}"></span>`).join("")}</div></div>
+      <div class="crop-help">${det.auto?"Contour détecté : faites glisser les coins si besoin.":"Contour non détecté : placez les 4 coins sur la carte."}</div>
+      <div class="crop-bot"><button type="button" class="btn ghost sm" data-a="retake">Reprendre la photo</button><button type="button" class="btn ghost sm" data-a="full">Photo entière</button><button type="button" class="btn sm" data-a="ok">Valider</button></div>`;
+    document.body.appendChild(ov);
+    const stage=ov.querySelector(".crop-stage"), wrap=ov.querySelector(".crop-wrap"), cv=ov.querySelector("canvas"), poly=ov.querySelector("polygon"), svg=ov.querySelector("svg");
+    let sc=1;
+    const layout=()=>{ const r=stage.getBoundingClientRect(); sc=Math.min(r.width/W, r.height/H); const dw=W*sc, dh=H*sc;
+      wrap.style.width=dw+"px"; wrap.style.height=dh+"px"; cv.width=Math.round(dw*devicePixelRatio); cv.height=Math.round(dh*devicePixelRatio); cv.style.width=dw+"px"; cv.style.height=dh+"px";
+      cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height); svg.setAttribute("width",dw); svg.setAttribute("height",dh); draw(); };
+    const draw=()=>{ poly.setAttribute("points", q.map(([x,y])=>`${x*sc},${y*sc}`).join(" "));
+      ov.querySelectorAll(".crop-h").forEach((h,i)=>{ h.style.left=q[i][0]*sc+"px"; h.style.top=q[i][1]*sc+"px"; }); };
+    let drag=-1;
+    ov.querySelectorAll(".crop-h").forEach(h=>h.addEventListener("pointerdown",e=>{ drag=+h.dataset.h; h.setPointerCapture(e.pointerId); e.preventDefault(); }));
+    ov.addEventListener("pointermove",e=>{ if(drag<0) return; const r=wrap.getBoundingClientRect();
+      q[drag]=[Math.min(W,Math.max(0,(e.clientX-r.left)/sc)), Math.min(H,Math.max(0,(e.clientY-r.top)/sc))]; draw(); });
+    ov.addEventListener("pointerup",()=>{ drag=-1; }); ov.addEventListener("pointercancel",()=>{ drag=-1; });
+    const done=v=>{ window.removeEventListener("resize",layout); ov.remove(); resolve(v); };
+    ov.addEventListener("click",e=>{ const a=e.target.closest("[data-a]")?.dataset.a; if(!a) return;
+      if(a==="cancel") done(null);
+      else if(a==="retake") done("retake");
+      else if(a==="full"){ q=[[0,0],[W,0],[W,H],[0,H]]; draw(); }
+      else if(a==="ok"){ try{ done(warpCard(img,q)); }catch(err){ toast("Découpe impossible : "+err.message); } } });
+    window.addEventListener("resize",layout);
+    requestAnimationFrame(layout);
+  });
+}
+
+/* ---------- 2.11 : scan d'une carte de visite (relais → Workers AI) ---------- */
+/** Ouvre l'appareil photo, réduit la photo, l'envoie au relais ; renvoie les champs lus (ou null) */
+function scanCard(){
+  return new Promise(resolve=>{
+    if(!odooAuth){ toast("Connectez-vous à Odoo (Réglages) pour scanner une carte"); return resolve(null); }
+    if(!navigator.onLine){ toast("Réseau nécessaire pour lire la carte"); return resolve(null); }
+    const inp=document.createElement("input"); inp.type="file"; inp.accept="image/*"; inp.setAttribute("capture","environment");
+    inp.style.display="none"; document.body.appendChild(inp);
+    inp.onchange=async()=>{
+      const f=inp.files?.[0]; inp.remove(); if(!f) return resolve(null);
+      let image;
+      try{
+        const {img,url}=await loadImg(f);
+        image=await cropCard(img); URL.revokeObjectURL(url);   // 2.11.2 : découpe du contour avant l'envoi
+        if(image==="retake") return resolve(await scanCard());
+        if(!image) return resolve(null);
+      }catch(e){ toast(e.message); return resolve(null); }
+      toast("Lecture de la carte…");
+      try{
+        const r=await relay("/scan/carte",{method:"POST",body:{image, jour:todayYMD()}});
+        if(!r.champs){ console.warn("scan", r.diag||r.brut); toast("Carte illisible : saisissez le contact à la main"+(IS_TEST && (r.diag||r.brut) ? " — test : "+String(r.diag?.resume||r.brut||"").slice(0,160) : "")); return resolve(null); }
+        toast(`Carte lue · vérifiez les champs (${r.restants} scan${r.restants>1?"s":""} restant${r.restants>1?"s":""} aujourd'hui)`);
+        resolve(r.champs);
+      }catch(e){ toast(e.message); resolve(null); }
+    };
+    inp.click();
+  });
+}
+function shrinkImage(file, max, q){
+  return new Promise((ok, ko)=>{
+    const url=URL.createObjectURL(file), img=new Image();
+    img.onload=()=>{ const s=Math.min(1, max/Math.max(img.width, img.height)); const cv=document.createElement("canvas");
+      cv.width=Math.round(img.width*s); cv.height=Math.round(img.height*s); cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);
+      URL.revokeObjectURL(url); ok(cv.toDataURL("image/jpeg", q)); };
+    img.onerror=()=>{ URL.revokeObjectURL(url); ko(new Error("Photo illisible")); };
+    img.src=url;
+  });
+}
+const SCAN_ICON = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>`;
+
 /* ---------- Formulaire de visite ---------- */
 function openVisitForm(c, existing){
   const v = existing ? {...existing} : {
     id:uid(), key:c.key||c.siret, siret:c.siret||"", siren:c.siren||"", name:c.name||"", address:c.address||"", lat:c.lat, lng:c.lng,
     naf:c.naf||"", nafLabel:nafLabel(c.naf), forme:formeLabel(c.forme), effectif:EFFECTIFS[c.effectifUl]||"", dirigeant:c.dirigeants?.[0]?`${c.dirigeants[0].who} (${c.dirigeants[0].role})`:"",
-    manual:!!c.manual, date:new Date().toISOString(), status:"", contactName:"", contactRole:"", contactPhone:"", contactEmail:"", solutions:[], notes:"", callbackDate:"", rdvStart:"", rdvDuree:1, cible:cibleOf(c, null, F && keyOf(F.c)===keyOf(c) ? (F.pIdx||0) : 0),
+    manual:!!c.manual, date:new Date().toISOString(), status:"", contactName:"", contactRole:"", contactPhone:"", contactEmail:"", contactOdooId:null, solutions:[], notes:"", callbackDate:"", rdvStart:"", rdvDuree:1, rdvCateg:"", cible:cibleOf(c, null, F && keyOf(F.c)===keyOf(c) ? (F.pIdx||0) : 0),
     equip: JSON.parse(JSON.stringify(equipOfC(c) || {}))  // reprise de l'équipement connu (partagé, sinon téléphone)
   };
   v.equip = normEquip(v.equip);
@@ -1332,15 +1695,23 @@ function openVisitForm(c, existing){
       <div id="v-rdv-wrap" class="stack" style="gap:8px" ${v.status==="invite"?"":"hidden"}>
         <div class="row" style="gap:8px"><label class="f" style="flex:1.4">Date du RDV *<input type="date" id="v-rdv-d" value="${esc(rdvParts(v.rdvStart).d)}" min="${todayYMD()}"></label>
           <label class="f" style="flex:1">Heure *<input type="time" id="v-rdv-h" step="900" value="${esc(rdvParts(v.rdvStart).h)}"></label></div>
+        ${rdvCatField("v-rdv-cat")}
         <label class="f">Durée<select id="v-rdv-dur">${[[0.5,"30 min"],[1,"1 h"],[1.5,"1 h 30"],[2,"2 h"]].map(([x,l])=>`<option value="${x}" ${+(v.rdvDuree||1)===x?"selected":""}>${l}</option>`).join("")}</select></label>
-        <div class="co-sub">Le RDV est créé dans votre agenda Odoo, sur la fiche de l'entreprise, avec le contact en participant. Odoo n'envoie rien : l'invitation part ensuite de votre Outlook. Nom et e-mail du contact obligatoires.</div>
+        <div class="co-sub">Le RDV « RDV TRIMARG x ${esc(v.name||"société")} » est créé dans votre agenda Odoo, sur la fiche de l'entreprise, avec le contact en participant. Odoo n'envoie rien : l'invitation part ensuite de votre Outlook. Nom et e-mail du contact obligatoires.</div>
         <div class="err" id="v-rdv-err" hidden></div></div>
       <div><div class="f" style="font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:6px">Solutions évoquées <span style="font-weight:400">(étiquettes Odoo)</span></div>
         <div class="sol" id="v-sol">${[...new Set([...productTags(), ...v.solutions])].map(s=>`<button type="button" data-v="${esc(s)}" aria-pressed="${v.solutions.includes(s)}">${esc(s)}</button>`).join("")}</div></div>
-      <label class="f"><span>Nom du contact<span class="req-inv" ${v.status==="invite"?"":"hidden"}> *</span></span><input id="v-cname" value="${esc(v.contactName)}" autocomplete="name"></label>
-      <label class="f">Fonction<input id="v-crole" value="${esc(v.contactRole)}" placeholder="Gérant, DAF, comptable…"></label>
-      <label class="f">Téléphone<input id="v-cphone" type="tel" value="${esc(v.contactPhone)}" autocomplete="tel"></label>
-      <label class="f"><span>E-mail<span class="req-inv" ${v.status==="invite"?"":"hidden"}> *</span></span><input id="v-cemail" type="email" value="${esc(v.contactEmail)}" autocomplete="email" autocapitalize="off"><span class="err" id="v-email-err" hidden>Adresse e-mail invalide</span></label>
+      <div id="v-ct"><div class="f" style="font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:6px">Contact<span class="req-inv" ${v.status==="invite"?"":"hidden"}> * (nom et e-mail)</span></div>
+        <div id="v-ct-card" hidden></div>
+        <div id="v-ct-list" hidden></div>
+        <div id="v-ct-fields" class="stack" style="gap:10px">
+          ${odooAuth?`<button type="button" class="btn ghost sm" id="v-scan">${SCAN_ICON}Scanner une carte de visite</button>`:""}
+          <label class="f"><span>Nom du contact<span class="req-inv" ${v.status==="invite"?"":"hidden"}> *</span></span><input id="v-cname" value="${esc(v.contactName)}" autocomplete="name"></label>
+          <label class="f">Fonction<input id="v-crole" value="${esc(v.contactRole)}" placeholder="Gérant, DAF, comptable…"></label>
+          <label class="f">Téléphone<input id="v-cphone" type="tel" value="${esc(v.contactPhone)}" autocomplete="tel"></label>
+          <label class="f"><span>E-mail<span class="req-inv" ${v.status==="invite"?"":"hidden"}> *</span></span><input id="v-cemail" type="email" value="${esc(v.contactEmail)}" autocomplete="email" autocapitalize="off"><span class="err" id="v-email-err" hidden>Adresse e-mail invalide</span></label>
+          <button type="button" class="linkbtn" id="v-ct-known" hidden>Choisir un contact déjà connu</button>
+        </div></div>
       <label class="f">Notes<textarea id="v-notes" placeholder="Besoin, outils actuels, prochaine étape… (dictée vocale : micro du clavier)">${esc(v.notes)}</textarea></label>
       ${equipForm(v.equip)}
       ${odooAuth&&!existing?`<div><button type="button" class="btn ghost sm" id="v-grp-btn">Groupe : renseigner</button><div id="v-grp"></div></div>`:""}
@@ -1360,6 +1731,55 @@ function openVisitForm(c, existing){
   $("#v-sol").onclick=e=>{ const b=e.target.closest("button"); if(!b) return; const on=b.getAttribute("aria-pressed")!=="true"; b.setAttribute("aria-pressed",on); };
   $("#v-save").onclick=()=>save();
   bindEquipForm();
+  fillRdvCat("v-rdv-cat", v.rdvCateg);
+  /* 2.11 — Contact : société déjà connue → dernier contact en carte + « Changer » (tous les contacts Odoo, contacts des visites, nouveau) */
+  let ct = {mode:"fields", sel:null, known:null};
+  const fld = id => $("#"+id);
+  function setFields(e){ fld("v-cname").value=e?.name||""; fld("v-crole").value=e?.role||""; fld("v-cphone").value=e?ctPhone(e):""; fld("v-cemail").value=e?.email||""; }
+  function drawCt(){
+    const card=$("#v-ct-card"), list=$("#v-ct-list"), fields=$("#v-ct-fields"); if(!card) return;
+    const kl = ct.known?.list || [];
+    fld("v-ct-known").hidden = !(ct.mode==="fields" && kl.length); fld("v-ct-known").textContent=`Choisir un contact déjà connu (${kl.length})`;
+    list.hidden = ct.mode!=="list"; card.hidden = ct.mode!=="card"; fields.hidden = ct.mode!=="fields";
+    if(ct.mode==="card"){ const e=ct.sel, ph=ctPhone(e);
+      card.innerHTML=`<div class="card" style="padding:12px"><div><b>${esc(e.name)}</b>${e.role?` <span class="co-sub">· ${esc(e.role)}</span>`:""}</div>
+        <div class="co-sub tabular" style="margin-top:2px">${[ph, e.email].filter(Boolean).map(esc).join(" · ")||"Ni téléphone ni e-mail"}</div>
+        <div class="co-sub" style="margin-top:2px">${e===ct.known?.last?"Contact de la dernière visite":e.id?"Contact Odoo":"Contact d'une visite"}</div>
+        <div class="row" style="gap:8px;margin-top:8px"><button type="button" class="btn sm" id="v-ct-chg">Changer</button><button type="button" class="btn ghost sm" id="v-ct-edit">✎ Corriger</button></div></div>`;
+      $("#v-ct-chg").onclick=()=>{ ct.mode="list"; drawCt(); };
+      $("#v-ct-edit").onclick=()=>{ setFields(ct.sel); v.contactOdooId=ct.sel.id||null; ct.mode="fields"; drawCt(); fld("v-cname").focus(); };
+    }
+    if(ct.mode==="list"){
+      list.innerHTML=`<div class="card" style="padding:4px 12px 8px">${kl.map((e,i)=>`<button type="button" class="ctrow" data-ct="${i}" aria-pressed="${ct.sel===e}">
+          <span class="t">${esc(e.name)}${e.role?` <span class="co-sub">· ${esc(e.role)}</span>`:""}</span><span class="s tabular">${[ctPhone(e), e.email].filter(Boolean).map(esc).join(" · ")||"Ni téléphone ni e-mail"}${e===ct.known.last?" · dernière visite":""}${e.id?"":" · pas encore dans Odoo"}</span></button>`).join("")}
+        ${ct.known.standard?`<div class="co-sub" style="padding:8px 0">Standard : <a class="tabular" href="tel:${esc(ct.known.standard.replace(/\s/g,""))}">${esc(ct.known.standard)}</a></div>`:""}
+        <button type="button" class="btn ghost sm block" id="v-ct-new" style="margin:8px 0 4px">＋ Nouveau contact</button>
+        ${ct.sel?`<button type="button" class="linkbtn" id="v-ct-back">Garder ${esc(ct.sel.name)}</button>`:`<button type="button" class="linkbtn" id="v-ct-back">Retour</button>`}</div>`;
+      list.querySelectorAll("[data-ct]").forEach(b=>b.onclick=()=>{ ct.sel=kl[+b.dataset.ct]; v.contactOdooId=ct.sel.id||null; setFields(ct.sel); ct.mode="card"; drawCt(); });
+      $("#v-ct-new").onclick=()=>{ ct.sel=null; v.contactOdooId=null; setFields(null); ct.mode="fields"; drawCt(); fld("v-cname").focus(); };
+      $("#v-ct-back").onclick=()=>{ ct.mode=ct.sel?"card":"fields"; drawCt(); };
+    }
+  }
+  fld("v-ct-known").onclick=()=>{ ct.mode="list"; drawCt(); };
+  const untouched = () => !["v-cname","v-crole","v-cphone","v-cemail"].some(id=>fld(id)?.value.trim());
+  const cc = existing ? companyFromVisit(v) : c;
+  if(cc && (!manual || partnerIdOf(cc) || visitsFor(keyOf(cc)).length)) knownContacts(cc).then(k=>{
+    if(!$("#v-ct")) return; ct.known=k;
+    if(existing && v.contactName){ const m=k.list.find(e=>ctNorm(e.name)===ctNorm(v.contactName)); if(m){ ct.sel=m; v.contactOdooId=v.contactOdooId||m.id||null; } }
+    else if(!existing && k.list.length && untouched()){
+      if(k.last){ ct.sel=k.last; v.contactOdooId=ct.sel.id||null; setFields(ct.sel); ct.mode="card"; }   // dernier contact de visite pré-sélectionné
+      else ct.mode="list";   // jamais visitée mais contacts dans Odoo : la liste est affichée pour choisir
+    }
+    drawCt();
+  }).catch(()=>{});
+  // Nom saisi à la main = un contact connu → on le rattache (pas de doublon dans Odoo)
+  fld("v-cname").addEventListener("change",()=>{ const m=ct.known?.list.find(e=>ctNorm(e.name)===ctNorm(fld("v-cname").value)); v.contactOdooId = m ? (m.id||null) : null; });
+  const sb=$("#v-scan"); if(sb) sb.onclick=async()=>{ sb.disabled=true; const r=await scanCard(); sb.disabled=false; if(!r) return;
+    fld("v-cname").value=r.nom||fld("v-cname").value; fld("v-crole").value=r.fonction||fld("v-crole").value;
+    fld("v-cphone").value=r.mobile||r.telephone||fld("v-cphone").value; fld("v-cemail").value=r.email||fld("v-cemail").value;
+    const m=ct.known?.list.find(e=>ctNorm(e.name)===ctNorm(r.nom)); v.contactOdooId = m ? (m.id||null) : null;
+    if(r.telephone && r.mobile && r.telephone!==r.mobile){ const n=fld("v-notes"); if(!n.value.includes(r.telephone)) n.value=(n.value?n.value+"\n":"")+"Fixe : "+r.telephone; }
+    if(manual){ if(r.societe && !$("#v-name").value.trim()){ $("#v-name").value=r.societe; $("#v-name").dispatchEvent(new Event("input")); } if(r.adresse && !$("#v-addr").value.trim()) $("#v-addr").value=r.adresse; } };
   // Saisie manuelle : recherche Odoo au fil de la frappe, rattachement en un tap
   let odLink = manual ? (odooLinks[v.key]||null) : null;
   function drawOdLink(){
@@ -1412,7 +1832,7 @@ function openVisitForm(c, existing){
     v.solutions=[...$("#v-sol").querySelectorAll('[aria-pressed="true"]')].map(b=>b.dataset.v);
     v.callbackDate = v.status==="callback" ? $("#v-cb").value : "";
     if(v.cible==="horscible"){ v.status="horscible"; v.callbackDate=""; }
-    v.rdvStart = ""; v.rdvDuree = +$("#v-rdv-dur").value || 1;
+    v.rdvStart = ""; v.rdvDuree = +$("#v-rdv-dur").value || 1; v.rdvCateg = $("#v-rdv-cat")?.value || "";
     if(v.status==="callback" && !v.callbackDate){ toast("Date de rappel obligatoire"); $("#v-cb").focus(); return; }
     if(v.status==="invite"){
       const d=$("#v-rdv-d").value, h=$("#v-rdv-h").value, er=$("#v-rdv-err");
@@ -1421,15 +1841,15 @@ function openVisitForm(c, existing){
       if(!d || !h) return bad("Date et heure du RDV obligatoires");
       const dt = new Date(d+"T"+h);   // heure locale du téléphone
       if(isNaN(dt) || (!existing && dt < new Date())) return bad("Le RDV doit être dans le futur");
-      if(!v.contactName){ toast("Nom du contact obligatoire pour une invitation"); $("#v-cname").focus(); return; }
-      if(!v.contactEmail){ toast("E-mail du contact obligatoire pour une invitation"); $("#v-cemail").focus(); return; }
+      if(!v.contactName){ toast("Nom du contact obligatoire pour une invitation"); if(ct.mode!=="fields"){ ct.mode="fields"; drawCt(); } $("#v-cname").focus(); return; }
+      if(!v.contactEmail){ toast("E-mail du contact obligatoire pour une invitation"); if(ct.mode!=="fields"){ ct.mode="fields"; drawCt(); } $("#v-cemail").focus(); return; }
       er.hidden=true; v.rdvStart = dt.toISOString();
     }
     if(manual){ v.name=$("#v-name").value.trim(); v.address=$("#v-addr").value.trim(); if(!v.name){ toast("Le nom de l'entreprise est obligatoire"); $("#v-name").focus(); return; } }
     if(!v.cible && !existing){ $("#v-cible-err").hidden=false; $("#v-cible").scrollIntoView({block:"center",behavior:"smooth"}); return; }
     if(v.cible==="horscible"){ v.status="horscible"; v.callbackDate=""; }
     if(!v.status){ $("#v-status-err").hidden=false; $("#v-status").scrollIntoView({block:"center",behavior:"smooth"}); return; }
-    if(v.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.contactEmail)){ $("#v-email-err").hidden=false; $("#v-cemail").focus(); return; }
+    if(v.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.contactEmail)){ if(ct.mode!=="fields"){ ct.mode="fields"; drawCt(); } $("#v-email-err").hidden=false; $("#v-cemail").focus(); return; }
     // Entreprise absente d'Odoo et création non cochée : on demande quoi faire
     let wantCreate = !existing && !odLink && !!$("#v-od-create")?.checked;
     if(v.cible==="horscible") wantCreate=false;   // hors cible : jamais de création de fiche Odoo
@@ -1558,17 +1978,18 @@ async function rappelAction(a, kind){
       <div><div class="co-name" style="font-size:18px;margin:0">${esc(a.name)}</div></div>
       <div class="row" style="gap:8px"><label class="f" style="flex:1.4">Date du RDV *<input type="date" id="r-d" min="${todayYMD()}"></label><label class="f" style="flex:1">Heure *<input type="time" id="r-h" step="900"></label></div>
       <label class="f">Durée<select id="r-dur"><option value="0.5">30 min</option><option value="1" selected>1 h</option><option value="1.5">1 h 30</option><option value="2">2 h</option></select></label>
+      ${rdvCatField("r-cat")}
       <label class="f">Nom du contact *<input id="r-cn" value="${esc(ct.name||"")}" autocomplete="name"></label>
       <label class="f">E-mail du contact *<input id="r-ce" type="email" value="${esc(ct.email||"")}" autocapitalize="off" autocomplete="email"></label>
-      <div class="co-sub">Le RDV est créé dans votre agenda Odoo avec le contact en participant, sans texte ; l'invitation part de votre Outlook. Le rappel est clos « RDV pris ».</div>
+      <div class="co-sub">Le RDV « RDV TRIMARG x ${esc(a.name)} » est créé dans votre agenda Odoo avec le contact en participant, sans texte ; l'invitation part de votre Outlook. Le rappel est clos « RDV pris ».</div>
       <div class="err" id="r-err" hidden></div>
       <button class="btn block" id="r-go">Valider le RDV</button></div>`});
     const go = async ()=>{ const d=$("#r-d").value, h=$("#r-h").value, n=$("#r-cn").value.trim(), em=$("#r-ce").value.trim(), er=$("#r-err");
       const bad=m=>{ er.textContent=m; er.hidden=false; };
       if(!d||!h) return bad("Date et heure du RDV obligatoires"); const dt=new Date(d+"T"+h); if(isNaN(dt)||dt<new Date()) return bad("Le RDV doit être dans le futur");
       if(!n) return bad("Nom du contact obligatoire"); if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) return bad("E-mail du contact obligatoire (adresse valide)");
-      $("#r-go").disabled=true; if(!await send({rdv:{start:dt.toISOString(), duree:+$("#r-dur").value||1}, contact:{name:n, email:em, phone:ct.phone||""}})) $("#r-go").disabled=false; };
-    $("#r-go").onclick=go; return;
+      $("#r-go").disabled=true; if(!await send({rdv:{start:dt.toISOString(), duree:+$("#r-dur").value||1, categ:rdvCatVal("r-cat")}, contact:{name:n, email:em, phone:ct.phone||""}})) $("#r-go").disabled=false; };
+    $("#r-go").onclick=go; fillRdvCat("r-cat"); return;
   }
   if(kind==="autre"){
     openModal({title:"Autre", left:"Retour", right:"Valider", onRight:()=>go(), html:`<div class="stack">
@@ -1589,8 +2010,40 @@ function renderSettings(){
   const companiesN = new Set(visits.map(v=>v.key)).size;
   $("#data-stats").textContent = `${visits.length} visite${visits.length>1?"s":""} · ${companiesN} entreprise${companiesN>1?"s":""} · stockées sur cet appareil`;
   $("#ver").textContent = "Version "+VERSION;
-  renderOdooCard();
+  renderOdooCard(); renderAdminCard();
 }
+/* 2.13.0 — Bouton « Ouvrir l'administration » (admins et chefs des ventes, selon le compte connecté)
+   Le relais donne un lien à usage unique valable 10 min ; il est préparé à l'avance pour que le bouton
+   soit un vrai lien (ouverture fiable sur iPhone), puis renouvelé après chaque usage. */
+let adminLink = null;   // {url, exp}
+const isStaff = () => !!(odooAuth && (odooAuth.admin || odooAuth.role==="chef"));
+function renderAdminCard(){
+  const h=$("#adm-h"), c=$("#adm-card"), b=$("#btn-admin"); if(!c) return;
+  const on=isStaff(); h.hidden=!on; c.hidden=!on;
+  if(!on){ adminLink=null; return; }
+  $("#adm-txt").textContent = odooAuth.admin ? "Rôles et accès, idées reçues, rapprochement SIREN, groupes, mails types et liste noire du phoning."
+    : "Rapprochement SIREN de votre territoire, groupes, mails types et liste noire du phoning.";
+  if(adminLink && adminLink.exp > Date.now()+60000){ b.href=adminLink.url; b.textContent="Ouvrir l'administration"; return; }
+  b.href="#"; prepAdminLink();
+}
+let adminLinkBusy=false;
+async function prepAdminLink(){
+  if(adminLinkBusy || !isStaff() || !navigator.onLine) return;
+  adminLinkBusy=true;
+  try{ const j=await relay("/auth/admin-link",{method:"POST"}); adminLink={url:j.url, exp:Date.parse(j.expires)||Date.now()+9*60000}; const b=$("#btn-admin"); if(b){ b.href=adminLink.url; } }
+  catch(e){ adminLink=null; }
+  finally{ adminLinkBusy=false; }
+}
+$("#btn-admin").addEventListener("click", e=>{
+  if(!adminLink || adminLink.exp <= Date.now()+5000 || $("#btn-admin").getAttribute("href")==="#"){
+    e.preventDefault();
+    if(!navigator.onLine){ toast("Pas de réseau : administration indisponible"); return; }
+    toast("Préparation du lien… touchez à nouveau"); adminLink=null; prepAdminLink();
+    return;
+  }
+  // Lien à usage unique : on en prépare un nouveau pour la prochaine fois
+  adminLink=null; setTimeout(()=>{ $("#btn-admin").href="#"; prepAdminLink(); }, 800);
+});
 function refreshAll(){ drawMarkers(); renderVisits(); renderCalls(); renderSettings(); }
 
 /* ---------- Exports ---------- */
@@ -1661,11 +2114,11 @@ $("#lg-go").onclick = async ()=>{
     const r = await fetch(RELAY+"/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({login,apiKey})});
     const j = await r.json().catch(()=>({}));
     if(!r.ok || !j.token) throw new Error(j.error||("Erreur "+r.status));
-    odooAuth = {token:j.token, login:j.login, name:j.name, admin:!!j.admin, expires:j.expires, odooUrl:j.odooUrl};
+    odooAuth = {token:j.token, login:j.login, name:j.name, admin:!!j.admin, role:j.role||"", territoire:j.territoire||"", expires:j.expires, odooUrl:j.odooUrl};
     saveAuth(); try{ LS.setItem("odooLogin", login); }catch(err){}
     $("#lg-key").value="";
     if(!settings.name){ settings.name=j.name; saveSettings(); }
-    hideLogin(); toast("Connecté : "+j.name); renderSettings(); odooRefreshStatus(); flushOutbox(); loadRappels(); loadEtiquettes(); sharedRefresh(true); flushIdeas(); loadIdeaBadge();
+    hideLogin(); toast("Connecté : "+j.name); renderSettings(); odooRefreshStatus(); flushOutbox(); loadRappels(); loadEtiquettes(); phBadge(); sharedRefresh(true); flushIdeas(); loadIdeaBadge();
   }catch(err){
     e.hidden=false; e.textContent = navigator.onLine ? err.message : "Pas de réseau : la connexion à Odoo est impossible pour l'instant.";
     $("#lg-skip").hidden=false;   // secours si le relais ou le réseau sont indisponibles
@@ -1678,7 +2131,7 @@ $("#lg-skip").onclick = hideLogin;
 /** Vérifie en arrière-plan que la session est toujours valide (clé révoquée, etc.) */
 async function odooCheckSession(){
   if(!navigator.onLine) return;
-  try{ const me = await relay("/auth/me"); odooAuth = {...odooAuth, name:me.name, admin:!!me.admin, expires:me.expires}; saveAuth(); renderOdooCard(); loadIdeaBadge(); }catch(e){}
+  try{ const me = await relay("/auth/me"); odooAuth = {...odooAuth, name:me.name, admin:!!me.admin, role:me.role||"", territoire:me.territoire||"", expires:me.expires}; saveAuth(); renderOdooCard(); renderAdminCard(); loadIdeaBadge(); }catch(e){}
 }
 
 function renderOdooCard(){
@@ -1696,7 +2149,7 @@ function renderOdooCard(){
   $("#od-logout").onclick = async ()=>{
     if(!await confirmBox("Se déconnecter d'Odoo sur ce téléphone ?","Se déconnecter")) return;
     try{ await relay("/auth/logout",{method:"POST"}); }catch(e){}
-    odooAuth=null; saveAuth(); odooCache.map={}; saveOdooCache(); drawMarkers(); renderOdooCard(); showLogin();
+    odooAuth=null; saveAuth(); odooCache.map={}; saveOdooCache(); drawMarkers(); renderOdooCard(); renderAdminCard(); showLogin();
   };
 }
 
@@ -1749,7 +2202,7 @@ async function odooRefreshStatus(force=false){
 }
 
 /* ---------- Filtre & légende ---------- */
-const ODOO_FILTERS = {client:"Clients", opportunite:"Opportunités en cours", qualifie:"Prospects qualifiés", prospect:"Prospects", horscible:"Hors cible", contrat:"Fin de contrat ≤ 6 mois", never:"Jamais visitées"};
+const ODOO_FILTERS = {client:"Clients", opportunite:"Opportunités en cours", strategique:"Comptes stratégiques", pme:"PME", qualifie:"Prospects qualifiés", prospect:"Prospects", horscible:"Hors cible", contrat:"Fin de contrat ≤ 6 mois", never:"Jamais visitées"};
 let odooFilter = "";
 function passesOdooFilter(cat, lv, clock){
   if(!odooFilter) return true;
@@ -1783,9 +2236,11 @@ function openLegend(keepScroll){
     <div class="lgd" style="margin-top:10px">
       <span>${ic("client")}<span><b>Client</b> — opportunité « Clos et accepté »</span></span>
       <span>${ic("opportunite")}<span><b>Opportunité en cours</b></span></span>
-      <span>${ic("qualifie")}<span><b>Prospect qualifié</b> — déjà visité, équipement renseigné</span></span>
+      <span>${ic("strategique")}<span><b>Compte stratégique</b> — sans opportunité en cours</span></span>
+      <span>${ic("pme")}<span><b>PME</b> — sans opportunité en cours</span></span>
+      <span>${ic("qualifie")}<span><b>Prospect qualifié</b> — déjà visité, équipement renseigné, cible non renseignée</span></span>
       <span>${ic("horscible")}<span><b>Hors cible</b> — inutile de repasser</span></span>
-      <span>${ic("prospect")}<span><b>Prospect</b> — non rattaché à Odoo ou sans opportunité</span></span>
+      <span>${ic("prospect")}<span><b>Prospect</b> — cible non renseignée, sans opportunité</span></span>
       <span>${ic("prospect",false,false,true)}<span>Gros point : <b>10 salariés ou plus</b></span></span>
       <span>${ic("prospect",false,false,false,3)}<span>Badge ×N : <b>plusieurs entreprises à la même adresse</b> (touchez pour la liste)</span></span>
       <span><span class="clu" style="width:30px;height:30px;font-size:11px;flex:none">12</span><span>Bulle : <b>entreprises regroupées</b> (touchez pour zoomer)</span></span>
@@ -2003,8 +2458,8 @@ function queueVisit(v, c, equipBefore, noOdoo=false, creer=null, pid=null){
   outbox.push({
     id:v.id, key:v.key, siren:id.siren||String(v.siren||v.siret||"").slice(0,9), partner_id:id.partner_id, name:v.name, address:v.address,
     lat:v.lat, lng:v.lng, date:v.date, status:v.status, solutions:v.solutions||[], notes:v.notes||"",
-    contact:{name:v.contactName, role:v.contactRole, phone:v.contactPhone, email:v.contactEmail},
-    cible:v.cible||"", callbackDate:v.callbackDate||"", rdv: v.status==="invite" && v.rdvStart ? {start:v.rdvStart, duree:+v.rdvDuree||1} : null, equip:v.equip, equipChanged:changed && equipAny(v.equip), equipLines:equipLines(normEquip(v.equip||{})), noOdoo,
+    contact:{id:v.contactOdooId||null, name:v.contactName, role:v.contactRole, phone:v.contactPhone, email:v.contactEmail},
+    cible:v.cible||"", callbackDate:v.callbackDate||"", rdv: v.status==="invite" && v.rdvStart ? {start:v.rdvStart, duree:+v.rdvDuree||1, categ: v.rdvCateg==="0" ? 0 : (+v.rdvCateg||null)} : null, equip:v.equip, equipChanged:changed && equipAny(v.equip), equipLines:equipLines(normEquip(v.equip||{})), noOdoo,
     creer: id.partner_id ? null : creer
   });
   saveOutbox(); flushOutbox();
@@ -2189,9 +2644,12 @@ async function paneContacts(pane, c){
   const list=d?.contacts||[];
   pane.innerHTML=`${list.length?list.map(x=>`<div class="card" style="margin-top:8px"><b>${esc(x.name)}</b>${x.function?` <span class="co-sub">· ${esc(x.function)}</span>`:""}<div class="row" style="gap:12px;margin-top:4px">${x.phone?`<a class="tabular" href="tel:${esc(String(x.phone).replace(/\s/g,""))}">${esc(x.phone)}</a>`:""}${x.mobile?`<a class="tabular" href="tel:${esc(String(x.mobile).replace(/\s/g,""))}">${esc(x.mobile)}</a>`:""}${x.email?`<a href="mailto:${esc(x.email)}">${esc(x.email)}</a>`:""}</div></div>`).join(""):`<div class="co-sub">Aucun contact dans Odoo.</div>`}
     <h2>Ajouter un contact</h2>
-    <div class="stack"><label class="f">Nom *<input id="ct-name" autocomplete="name"></label><label class="f">Fonction<input id="ct-role"></label>
+    <div class="stack"><button type="button" class="btn ghost sm" id="ct-scan">${SCAN_ICON}Scanner une carte de visite</button>
+    <label class="f">Nom *<input id="ct-name" autocomplete="name"></label><label class="f">Fonction<input id="ct-role"></label>
     <label class="f">Téléphone<input id="ct-phone" type="tel"></label><label class="f">E-mail<input id="ct-email" type="email" autocapitalize="off"></label>
     <button class="btn block" id="ct-go">Ajouter dans Odoo</button></div>`;
+  $("#ct-scan").onclick=async()=>{ const sb=$("#ct-scan"); sb.disabled=true; const r=await scanCard(); sb.disabled=false; if(!r) return;
+    $("#ct-name").value=r.nom||""; $("#ct-role").value=r.fonction||""; $("#ct-phone").value=r.mobile||r.telephone||""; $("#ct-email").value=r.email||""; };
   $("#ct-go").onclick=async()=>{
     const b={partner_id:partnerIdOf(c), name:$("#ct-name").value.trim(), role:$("#ct-role").value.trim(), phone:$("#ct-phone").value.trim(), email:$("#ct-email").value.trim()};
     if(!b.name){ toast("Le nom est obligatoire"); return; }
@@ -2466,12 +2924,459 @@ async function loadIdeaBadge(){
   try{ const j=await relay("/admin/idees?count=1"); const n=j.nouvelles||0; bd.hidden=!n; bd.textContent=n; if(btn) btn.textContent = n ? `Idées reçues (${n} nouvelle${n>1?"s":""})` : "Idées reçues"; }catch(e){}
 }
 
+/* =====================================================================
+   2.12.0 — PHONING (prospection téléphonique à froid)
+   Listes importées (CSV / Excel), session d'appels (file + appel en cours), résultat en un geste.
+   Rien dans Odoo sauf RDV pris ou rappel que le commercial choisit d'y enregistrer.
+   Les mails s'ouvrent dans Outlook (mailto) : rien n'est envoyé par Odoo ni par le relais.
+   ===================================================================== */
+const PH = { lists:[], archived:false, mails:null, list:null, queue:[], later:[], cur:null, skipped:new Set(), sess:null, panel:"", busy:false, verrouilles:0 };
+const PH_FIELDS = {"":"Ignorer", name:"Entreprise", phone:"Téléphone", city:"Ville", zip:"Code postal", siren:"SIREN / SIRET", contact:"Contact", fonction:"Fonction", email:"E-mail", notes:"Notes"};
+const PH_MOTIFS = [
+  {k:"mauvais", label:"Mauvais numéro", sub:"Liste noire de l'équipe"},
+  {k:"interet", label:"Pas d'intérêt", sub:"Écarté 6 mois"},
+  {k:"horscible", label:"Hors cible", sub:"Liste noire de l'équipe"},
+  {k:"fermee", label:"Société fermée", sub:"Liste noire de l'équipe"},
+  {k:"nepas", label:"Ne plus appeler", sub:"Liste noire de l'équipe"},
+  {k:"autre", label:"Autre", sub:"Retiré de cette liste"}];
+const PH_KIND = {rappel:"Rappel demandé", equipe:"Fin de contrat", mail:"Relance mail", retry:"Nouvel essai"};
+const phIsChef = () => !!(odooAuth && (odooAuth.admin || odooAuth.role==="chef"));
+const phNorm = x => String(x||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().trim();
+const PH_LEGAL = /\b(sas|sasu|sarl|sa|eurl|sci|snc|selarl|selas|scp|scm|gie|ei|eirl|ets|etablissements?|ste|societe|cie|compagnie|groupe)\b/g;
+const phName = x => phNorm(x).replace(/[^a-z0-9 ]+/g," ").replace(PH_LEGAL," ").replace(/\s+/g," ").trim();
+function phScore(a,b){ const A=new Set(phName(a).split(" ").filter(Boolean)), B=new Set(phName(b).split(" ").filter(Boolean)); if(!A.size||!B.size) return 0; let n=0; for(const t of A) if(B.has(t)) n++; return n/Math.max(A.size,B.size); }
+function phPhone(x){ let d=String(x||"").replace(/\D/g,""); if(d.startsWith("00")) d=d.slice(2); if(/^(590|594|596|262|269|33)\d{9}$/.test(d)) d="0"+d.slice(-9); if(/^[1-9]\d{8}$/.test(d)) d="0"+d; return /^0[1-9]\d{8}$/.test(d)?d:""; }
+const phFmt = n => n ? n.replace(/^(\d{4})(\d{2})(\d{2})(\d{2})$/,"$1 $2 $3 $4") : "";
+/** Date (et heure si précisée) d'un appel programmé ; « T06:00:00.000Z » = date sans heure */
+const phWhen = iso => { if(!iso) return ""; const d=new Date(iso); const dateOnly=/T06:00:00(\.000)?Z$/.test(iso);
+  const day=dateOnly ? new Date(iso.slice(0,10)+"T12:00") : d;
+  return day.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"})+(dateOnly?"":" à "+d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})); };
+const IS_DESK = () => window.matchMedia("(min-width: 900px)").matches;
+
+/* ---------- Écran Phoning : listes ---------- */
+async function loadPhoning(){
+  const el=$("#ph-lists"); if(!el) return;
+  $("#ph-import").hidden = !odooAuth;
+  if(!odooAuth){ el.innerHTML=`<div class="empty">Connectez-vous à Odoo (Réglages) pour utiliser le phoning.</div>`; return; }
+  if(!navigator.onLine){ el.innerHTML=`<div class="empty">Hors ligne : le phoning nécessite une connexion.</div>`; return; }
+  try{
+    const [j, t] = await Promise.all([relay("/phoning/lists"+(PH.archived?"?archived=1":"")), relay("/phoning/mailtodo").catch(()=>({items:[]}))]);
+    PH.lists=j.lists||[]; PH.mailtodo=t.items||[];
+  }catch(e){ el.innerHTML=`<div class="err">${esc(e.message)}</div>`; return; }
+  const mt=$("#ph-mailtodo"); mt.hidden=!PH.mailtodo.length; mt.textContent=`Mails à faire (${PH.mailtodo.length})`;
+  const due = PH.lists.reduce((s,l)=>s+(+l.n.rappels_dus||0),0);
+  const b=$("#ph-badge"); b.hidden=!due; b.textContent=due;
+  el.innerHTML = PH.lists.length ? PH.lists.map((l,i)=>{ const n=l.n||{}, tot=+n.total||0, done=+n.traites||0;
+    return `<div class="card ph-list">
+      <div class="rp-h"><div class="t">${esc(l.name)}</div><span class="co-sub">${esc(TERR_NAMES[l.dept]||"")}</span></div>
+      <div class="co-sub">${l.assignees.length>1||l.assignees[0]!==odooAuth.login?"Affectée à "+esc(l.assignees.map(a=>a.split("@")[0]).join(", "))+" · ":""}Importée par ${esc(l.created_name||"")} le ${esc(fmtDate(l.created))}</div>
+      <div class="ph-bar"><span style="width:${tot?Math.round(done/tot*100):0}%"></span></div>
+      <div class="ph-nums tabular"><span><b>${+n.a_appeler||0}</b> à appeler</span>${+n.rappels_dus?`<span class="due"><b>${n.rappels_dus}</b> rappel${n.rappels_dus>1?"s":""} dû${n.rappels_dus>1?"s":""}</span>`:""}<span><b>${+n.plus_tard||0}</b> programmés</span><span><b>${done}</b>/${tot} traités</span><span><b>${+n.rdv||0}</b> RDV</span>${+n.retires?`<span><b>${n.retires}</b> retirés</span>`:""}</div>
+      <div class="row">${l.archived?"":`<button class="btn sm" data-go="${i}">${+n.a_appeler?"Démarrer la session":"Voir la liste"}</button>`}
+        <button class="btn ghost sm" data-exp="${i}">Exporter (Excel)</button>
+        ${l.manage?`<button class="btn ghost sm" data-arch="${i}">${l.archived?"Réactiver":"Archiver"}</button>`:""}
+        ${l.manage&&phIsChef()&&!l.archived?`<button class="btn ghost sm" data-aff="${i}">Affecter</button>`:""}</div>
+    </div>`; }).join("") : `<div class="empty">${PH.archived?"Aucune liste archivée.":"Aucune liste d'appels. Importez un fichier (Excel ou CSV) avec au moins le nom de l'entreprise et le numéro de téléphone."}</div>`;
+  el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>phStart(PH.lists[+b.dataset.go]));
+  el.querySelectorAll("[data-exp]").forEach(b=>b.onclick=()=>phExport(PH.lists[+b.dataset.exp]));
+  el.querySelectorAll("[data-arch]").forEach(b=>b.onclick=async()=>{ const l=PH.lists[+b.dataset.arch];
+    if(!l.archived && !await confirmBox(`Archiver la liste « ${l.name} » ? Elle ne sera plus proposée ; les numéros restants pourront être réimportés.`,"Archiver",false)) return;
+    try{ await relay("/phoning/list/update",{method:"POST",body:{id:l.id, archived:!l.archived}}); loadPhoning(); }catch(e){ toast(e.message); } });
+  el.querySelectorAll("[data-aff]").forEach(b=>b.onclick=()=>phAssign(PH.lists[+b.dataset.aff]));
+}
+/** Pastille de l'onglet : rappels et relances du phoning arrivés à échéance */
+async function phBadge(){ if(!odooAuth||!navigator.onLine) return; try{ const j=await relay("/phoning/lists"); const due=(j.lists||[]).reduce((s,l)=>s+(+l.n.rappels_dus||0),0); const b=$("#ph-badge"); b.hidden=!due; b.textContent=due; }catch(e){} }
+const TERR_NAMES = {"971":"Guadeloupe","972":"Martinique","973":"Guyane","974":"La Réunion"};
+async function phExport(l){
+  try{ const r=await fetch(RELAY+"/phoning/export?list="+encodeURIComponent(l.id),{headers:{Authorization:"Bearer "+odooAuth.token}});
+    if(!r.ok) throw new Error("Export impossible ("+r.status+")");
+    const blob=await r.blob(); const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+    a.download=("phoning_"+l.name.replace(/[^\w-]+/g,"_")+"_"+todayYMD()+".csv"); document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1000);
+  }catch(e){ toast(e.message); }
+}
+async function phUsersPicker(id, selected){
+  const el=document.getElementById(id); if(!el) return;
+  try{ const j=await relay("/phoning/users"); const sel=new Set(selected.map(x=>x.toLowerCase()));
+    el.innerHTML=`<input class="inp" placeholder="Filtrer…" id="${id}-q" style="margin-bottom:6px"><div class="ph-users">${(j.users||[]).map(u=>`<label class="ph-u"><input type="checkbox" value="${esc(u.login)}" ${sel.has(String(u.login).toLowerCase())?"checked":""}><span>${esc(u.name)}<small>${esc(u.login)}</small></span></label>`).join("")}</div>`;
+    $("#"+id+"-q").oninput=e=>{ const q=phNorm(e.target.value); el.querySelectorAll(".ph-u").forEach(x=>x.hidden=q&&!phNorm(x.textContent).includes(q)); };
+  }catch(e){ el.innerHTML=`<div class="err">${esc(e.message)}</div>`; }
+}
+const phPicked = id => [...document.querySelectorAll(`#${id} input[type=checkbox]:checked`)].map(x=>x.value);
+function phAssign(l){
+  openModal({title:"Affecter la liste", left:"Retour", right:"Valider", onRight:()=>go(), html:`<div class="stack"><div class="co-name" style="font-size:18px;margin:0">${esc(l.name)}</div><div class="co-sub">Commerciaux qui appellent cette liste (file partagée : un numéro en cours d'appel est réservé à celui qui l'appelle).</div><div id="aff-u">Chargement…</div><div class="err" id="aff-err" hidden></div></div>`});
+  phUsersPicker("aff-u", l.assignees);
+  const go=async()=>{ const a=phPicked("aff-u"); if(!a.length){ $("#aff-err").textContent="Choisissez au moins un commercial"; $("#aff-err").hidden=false; return; }
+    try{ await relay("/phoning/list/update",{method:"POST",body:{id:l.id, assignees:a}}); closeModal(); toast("Liste affectée"); loadPhoning(); }catch(e){ $("#aff-err").textContent=e.message; $("#aff-err").hidden=false; } };
+}
+
+/* ---------- Import d'un fichier (CSV / Excel) ---------- */
+function phReadText(buf){ try{ return new TextDecoder("utf-8",{fatal:true}).decode(buf); }catch(e){ return new TextDecoder("windows-1252").decode(buf); } }
+function phParseCsv(txt){
+  txt=txt.replace(/^﻿/,""); const first=txt.split(/\r?\n/)[0]||"";
+  const sep=[";",",","\t"].map(s=>[s,first.split(s).length]).sort((a,b)=>b[1]-a[1])[0][0];
+  const rows=[]; let row=[], cell="", q=false;
+  for(let i=0;i<txt.length;i++){ const ch=txt[i];
+    if(q){ if(ch==='"'){ if(txt[i+1]==='"'){ cell+='"'; i++; } else q=false; } else cell+=ch; continue; }
+    if(ch==='"') q=true; else if(ch===sep){ row.push(cell); cell=""; } else if(ch==="\n"||ch==="\r"){ if(ch==="\r"&&txt[i+1]==="\n") i++; row.push(cell); rows.push(row); row=[]; cell=""; } else cell+=ch; }
+  if(cell||row.length){ row.push(cell); rows.push(row); }
+  return rows.filter(r=>r.some(c=>String(c).trim()));
+}
+let xlsxP=null;
+function phLoadXlsx(){ return xlsxP ||= new Promise((res,rej)=>{ const s=document.createElement("script"); s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; s.onload=()=>res(window.XLSX); s.onerror=()=>{ xlsxP=null; rej(new Error("Lecteur Excel indisponible (connexion ?) : enregistrez le fichier en CSV")); }; document.head.appendChild(s); }); }
+async function phReadFile(f){
+  const buf=await f.arrayBuffer();
+  if(/\.(xlsx|xls|xlsm|ods)$/i.test(f.name)){ const X=await phLoadXlsx(); const wb=X.read(buf,{type:"array"}); const ws=wb.Sheets[wb.SheetNames[0]];
+    return X.utils.sheet_to_json(ws,{header:1, raw:false, defval:""}).map(r=>r.map(c=>String(c??""))).filter(r=>r.some(c=>c.trim())); }
+  return phParseCsv(phReadText(buf));
+}
+function phGuess(h){ const n=phNorm(h);
+  if(/siret|siren/.test(n)) return "siren";
+  if(/mail/.test(n)) return "email";
+  if(/t[eé]l|phone|portable|mobile|fixe|^num/.test(n)) return "phone";
+  if(/code postal|^cp$|postal|zip/.test(n)) return "zip";
+  if(/ville|commune|city|localit/.test(n)) return "city";
+  if(/fonction|poste|qualite/.test(n)) return "fonction";
+  if(/contact|interlocuteur|dirigeant|gerant|prenom/.test(n)) return "contact";
+  if(/raison|societe|entreprise|denomination|enseigne|company|^nom|client|etablissement/.test(n)) return "name";
+  if(/note|comment|remarque|activite|naf|secteur|effectif/.test(n)) return "notes";
+  return ""; }
+function phImport(){
+  if(!odooAuth){ toast("Connectez-vous à Odoo"); return; }
+  const chef=phIsChef();
+  openModal({title:"Importer une liste", left:"Annuler", html:`<div class="stack" id="imp">
+    <div class="co-sub">Fichier Excel (.xlsx) ou CSV, une ligne par numéro à appeler, avec au moins <b>le nom de l'entreprise</b> et <b>le téléphone</b>. Ville, SIREN, contact, e-mail et notes sont repris s'ils existent.</div>
+    <label class="btn block" for="imp-f">Choisir le fichier</label><input type="file" id="imp-f" accept=".csv,.txt,.xlsx,.xls,.ods,text/csv" hidden>
+    <div id="imp-b"></div></div>`});
+  $("#imp-f").onchange=async e=>{ const f=e.target.files[0]; if(!f) return;
+    $("#imp-b").innerHTML=`<div class="co-sub">Lecture de ${esc(f.name)}…</div>`;
+    let rows; try{ rows=await phReadFile(f); }catch(err){ $("#imp-b").innerHTML=`<div class="err">${esc(err.message)}</div>`; return; }
+    if(rows.length<2){ $("#imp-b").innerHTML=`<div class="err">Fichier vide ou sans ligne de titres.</div>`; return; }
+    const head=rows[0].map((h,i)=>String(h).trim()||("Colonne "+(i+1))), data=rows.slice(1, 2001);
+    const map=head.map(phGuess); ["name","phone"].forEach(k=>{ const idx=map.map((m,i)=>m===k?i:-1).filter(i=>i>=0); idx.slice(1).forEach(i=>{ if(k==="name") map[i]="notes"; }); });
+    const fopts=v=>Object.entries(PH_FIELDS).map(([k,l])=>`<option value="${k}" ${k===v?"selected":""}>${esc(l)}</option>`).join("");
+    $("#imp-b").innerHTML=`
+      ${rows.length>2001?`<div class="warn">Le fichier dépasse 2 000 lignes : seules les 2 000 premières sont importées.</div>`:""}
+      <h2 style="margin-top:4px">Colonnes (${data.length} lignes)</h2>
+      <div class="ph-map">${head.map((h,i)=>`<label class="ph-mr"><span><b>${esc(h)}</b><small>${esc(data.slice(0,3).map(r=>r[i]||"").filter(Boolean).join(" · ").slice(0,90))}</small></span><select data-col="${i}">${fopts(map[i])}</select></label>`).join("")}</div>
+      <label class="f">Nom de la liste<input id="imp-n" value="${esc(f.name.replace(/\.[^.]+$/,"").replace(/[_-]+/g," "))}"></label>
+      <label class="f">Territoire<select id="imp-d">${Object.entries(TERR_NAMES).map(([k,v])=>`<option value="${k}" ${k===(odooAuth.territoire||settings.dept||"972")?"selected":""}>${v}</option>`).join("")}</select></label>
+      ${chef?`<div><div class="co-sub" style="font-weight:600;margin-bottom:6px">Affectée à</div><div id="imp-u">Chargement…</div></div>`:`<div class="co-sub">La liste vous est affectée.</div>`}
+      <label class="toggle"><span>Retrouver les SIREN manquants<small>Recherche par nom dans la base publique (≈ 2 noms par seconde) : permet d'écarter les clients et opportunités Odoo.</small></span><input type="checkbox" id="imp-s" checked></label>
+      <div class="err" id="imp-err" hidden></div>
+      <button class="btn block" id="imp-go">Analyser le fichier</button>
+      <div id="imp-r"></div>`;
+    if(chef) phUsersPicker("imp-u",[odooAuth.login]);
+    $("#imp-go").onclick=()=>phAnalyse(f.name, head, data);
+  };
+}
+async function phAnalyse(fname, head, data){
+  const er=$("#imp-err"); er.hidden=true;
+  const cols={}; document.querySelectorAll("#imp-b [data-col]").forEach(s=>{ if(s.value) (cols[s.value] ||= []).push(+s.dataset.col); });
+  if(!cols.name || !cols.phone){ er.textContent="Indiquez au moins la colonne Entreprise et la colonne Téléphone."; er.hidden=false; return; }
+  const assignees = phIsChef() ? phPicked("imp-u") : [odooAuth.login];
+  if(phIsChef() && !assignees.length){ er.textContent="Choisissez au moins un commercial."; er.hidden=false; return; }
+  const dept=$("#imp-d").value, listName=$("#imp-n").value.trim()||fname;
+  const rows=data.map(r=>{ const g=k=>(cols[k]||[]).map(i=>String(r[i]||"").trim()).filter(Boolean);
+    return { name:g("name")[0]||"", phone:g("phone").find(p=>phPhone(p))||g("phone")[0]||"", city:g("city")[0]||"", zip:g("zip")[0]||"",
+      siren:(g("siren")[0]||"").replace(/\D/g,""), contact:g("contact").join(" "), fonction:g("fonction")[0]||"", email:g("email")[0]||"",
+      notes:(cols.notes||[]).map(i=>r[i]?head[i]+" : "+r[i]:"").filter(Boolean).join("\n") }; });
+  rows.forEach(r=>{ if(r.siren.length===14){ r.siret=r.siren; r.siren=r.siren.slice(0,9); } else if(r.siren.length!==9) r.siren=""; });
+  $("#imp-go").disabled=true; const out=$("#imp-r");
+  // SIREN manquants : recherche par nom (+ ville) dans la base publique, territoire choisi
+  if($("#imp-s").checked){
+    const todo=rows.filter(r=>!r.siren && r.name && phPhone(r.phone)).slice(0,400); let found=0;
+    for(let i=0;i<todo.length;i++){ const r=todo[i];
+      out.innerHTML=`<div class="co-sub">Recherche des SIREN : ${i+1} / ${todo.length} (${found} trouvés)…</div><div class="ph-bar"><span style="width:${Math.round((i+1)/todo.length*100)}%"></span></div>`;
+      try{ const d=await apiGet("/search",{q:r.name, departement:dept, code_postal:/^\d{5}$/.test(r.zip)?r.zip:"", per_page:5, limite_matching_etablissements:3, etat_administratif:"A"});
+        let best=null, bs=0;
+        for(const ul of d.results||[]){ const names=[ul.nom_complet, ul.nom_raison_sociale, ...(ul.siege?.liste_enseignes||[]), ...(ul.matching_etablissements||[]).flatMap(e=>e.liste_enseignes||[])].filter(Boolean);
+          const sc=Math.max(...names.map(n=>phScore(r.name,n)),0);
+          const et=(ul.matching_etablissements||[]).find(e=>!r.city||phNorm(e.libelle_commune||"")===phNorm(r.city)) || ul.siege || {};
+          const sameCity=r.city && phNorm(et.libelle_commune||ul.siege?.libelle_commune||"")===phNorm(r.city);
+          const s2=sc+(sameCity?0.2:0); if(s2>bs){ bs=s2; best={siren:ul.siren, siret:et.siret||""}; } }
+        if(best && bs>=0.7){ r.siren=best.siren; r.siret=best.siret; r.sirenAuto=true; found++; }
+      }catch(e){ if(!navigator.onLine) break; }
+      await sleep(380);
+    }
+  }
+  out.innerHTML=`<div class="co-sub">Vérification dans Odoo et dans les autres listes…</div>`;
+  let an; try{ an=(await relay("/phoning/analyse",{method:"POST",body:{rows}})).rows; }catch(e){ out.innerHTML=`<div class="err">${esc(e.message)}</div>`; $("#imp-go").disabled=false; return; }
+  const V={ok:"À appeler", client:"Clients Odoo (exclus)", opportunite:"Opportunités en cours (exclues)", autreliste:"Déjà dans une autre liste (exclus)", noire:"Liste noire (exclus)", doublon:"Doublons de numéro (exclus)", invalide:"Numéro absent ou invalide (exclus)"};
+  const by={}; an.forEach(x=>(by[x.verdict] ||= []).push(x));
+  const keep=(by.ok||[]).map(x=>({...rows[x.i], phone_norm:x.phone_norm, partner_id:x.partner_id||null, odoo_status:x.odoo_status||""}));
+  const connus=keep.filter(x=>x.partner_id).length, sir=rows.filter(r=>r.siren).length;
+  out.innerHTML=`<h2>Nettoyage avant appel</h2><div class="card">${Object.keys(V).filter(k=>by[k]).map(k=>`<details class="ph-det"><summary><span>${esc(V[k])}</span><b class="tabular">${by[k].length}</b></summary><div class="co-sub">${by[k].slice(0,200).map(x=>esc(rows[x.i].name||"(sans nom)")+" · "+esc(rows[x.i].phone||"—")+(x.detail?" — "+esc(x.detail):"")).join("<br>")}</div></details>`).join("")}
+    <div class="co-sub" style="margin-top:8px">SIREN connu pour ${sir} ligne${sir>1?"s":""} sur ${rows.length}${connus?` · ${connus} prospect${connus>1?"s":""} déjà dans Odoo (gardés)`:""}.</div></div>
+    ${keep.length?`<button class="btn block" id="imp-ok" style="margin-top:12px">Créer la liste (${keep.length} numéro${keep.length>1?"s":""})</button>`:`<div class="warn" style="margin-top:12px">Aucun numéro à appeler.</div>`}`;
+  $("#imp-go").disabled=false;
+  if(keep.length) $("#imp-ok").onclick=async()=>{ $("#imp-ok").disabled=true;
+    try{ const stats=Object.fromEntries(Object.entries(by).map(([k,v])=>[k,v.length]));
+      await relay("/phoning/create",{method:"POST",body:{name:listName, dept, assignees, rows:keep, source:fname, stats}});
+      closeModal(); toast(`Liste « ${listName} » créée`); loadPhoning();
+    }catch(e){ toast(e.message); $("#imp-ok").disabled=false; } };
+}
+
+/* ---------- Session d'appels ---------- */
+async function phStart(l){
+  PH.list=l; PH.skipped=new Set(); PH.cur=null; PH.panel="";
+  PH.sess={start:new Date().toISOString(), n:{}, rdv:[], odoo:0, list:l.name};
+  try{ PH.mails = (await relay("/phoning/mails")).mails||[]; }catch(e){ PH.mails=PH.mails||[]; }
+  openModal({title:l.name, left:"Terminer", onLeft:()=>phEnd(), html:`<div class="ph-sess"><aside class="ph-q" id="ph-q"></aside><section class="ph-main" id="ph-main"><div class="co-sub">Chargement…</div></section></div>`});
+  $("#modal").classList.add("ph-wide");
+  loadRdvCats(); await phRefresh(true);
+}
+async function phRefresh(pickNext){
+  try{ const j=await relay("/phoning/queue?list="+encodeURIComponent(PH.list.id)); PH.queue=j.items||[]; PH.later=j.later||[]; PH.verrouilles=j.verrouilles||0; }
+  catch(e){ $("#ph-main").innerHTML=`<div class="err">${esc(e.message)}</div>`; return; }
+  if(pickNext) await phNext(); else phRenderQueue();
+}
+function phOrder(){ return [...PH.queue.filter(x=>!PH.skipped.has(x.id)), ...PH.queue.filter(x=>PH.skipped.has(x.id))]; }
+async function phNext(id){
+  const order=phOrder();
+  let cand = id ? order.filter(x=>x.id===id) : order;
+  for(const it of cand){
+    try{ const r=await relay("/phoning/lock",{method:"POST",body:{id:it.id}}); if(r.ok){ PH.cur=it; PH.panel=""; phRenderQueue(); phRender(); return; } }
+    catch(e){ toast(e.message); return; }
+    PH.queue=PH.queue.filter(x=>x.id!==it.id);
+  }
+  PH.cur=null; phRenderQueue(); phRender();
+}
+function phRenderQueue(){
+  const q=$("#ph-q"); if(!q) return;
+  const order=phOrder();
+  $("#m-title").textContent=`${PH.list.name} · ${order.length} à appeler`;
+  q.innerHTML=`<div class="ph-qh"><b>File (${order.length})</b>${PH.verrouilles?`<span class="co-sub"> · ${PH.verrouilles} en cours chez un collègue</span>`:""}</div>`+
+    order.map(x=>`<button class="ph-qi ${PH.cur&&PH.cur.id===x.id?"on":""}" data-id="${x.id}"><span class="t">${esc(x.name)}</span><span class="s">${x.kind?`<span class="ph-k ${x.kind}">${esc(PH_KIND[x.kind]||"")}</span> `:""}${x.next_at&&x.prio===0?esc(phWhen(x.next_at))+" · ":""}${esc(x.city||x.phone)}${PH.skipped.has(x.id)?" · passé":""}</span></button>`).join("")+
+    (PH.later.length?`<div class="ph-qh" style="margin-top:12px"><b>Programmés (${PH.later.length})</b></div>`+PH.later.map(x=>`<div class="ph-qi ph-later"><span class="t">${esc(x.name)}</span><span class="s">${x.kind?`<span class="ph-k ${x.kind}">${esc(PH_KIND[x.kind]||"")}</span> `:""}${esc(phWhen(x.next_at))}</span></div>`).join(""):"");
+  q.querySelectorAll("[data-id]").forEach(b=>b.onclick=async()=>{ if(PH.cur&&PH.cur.id!==b.dataset.id) await relay("/phoning/lock",{method:"POST",body:{id:PH.cur.id, release:true}}).catch(()=>{}); phNext(b.dataset.id); });
+}
+function phTel(it){ return it.phone_norm || phPhone(it.phone); }
+function phRender(){
+  const m=$("#ph-main"); if(!m) return;
+  const it=PH.cur;
+  if(!it){ m.innerHTML=`<div class="empty">${PH.later.length?`Plus aucun numéro à appeler maintenant. ${PH.later.length} appel${PH.later.length>1?"s":""} programmé${PH.later.length>1?"s":""} plus tard.`:"Liste terminée."}</div><button class="btn block" id="ph-fin">Terminer la session</button>`; $("#ph-fin").onclick=phEnd; return; }
+  const c=it.contact||{}, tel=phTel(it);
+  const odoo = it.partner_id ? `<span class="ph-od connu">Dans Odoo</span>` : `<span class="ph-od">Pas dans Odoo</span>`;
+  const mail=it.mail||{};
+  const banner = it.kind==="mail" ? `<div class="ph-ban mail"><b>Relance du mail${mail.titre?" « "+esc(mail.titre)+" »":""} envoyé le ${esc(fmtDate(mail.at))}</b><div class="ph-say">« Bonjour${c.name?" "+esc([c.civ,c.name].filter(Boolean).join(" ")):""}, je vous ai envoyé un mail le ${esc(new Date(mail.at||Date.now()).toLocaleDateString("fr-FR",{day:"numeric",month:"long"}))}, l'avez-vous bien reçu ? »</div></div>`
+    : it.kind==="rappel"||it.kind==="equipe" ? `<div class="ph-ban"><b>${esc(PH_KIND[it.kind])} · ${esc(phWhen(it.next_at))}</b>${it.notes?`<div>${esc(it.notes)}</div>`:""}</div>` : "";
+  m.innerHTML=`<div class="ph-card">
+    <div class="ph-top"><div style="min-width:0"><div class="co-name" style="margin:0">${esc(it.name)}</div>
+      <div class="co-sub">${[it.city, it.siren?"SIREN "+fmtSiret(it.siren):""].filter(Boolean).map(esc).join(" · ")} ${odoo}
+        ${it.siren?` · <a href="https://annuaire-entreprises.data.gouv.fr/entreprise/${esc(it.siren)}" target="_blank" rel="noopener">Annuaire</a>`:""}${it.partner_id&&odooAuth.odooUrl?` · <a href="${esc(odooAuth.odooUrl.replace(/\/+$/,""))}/odoo/contacts/${+it.partner_id}" target="_blank" rel="noopener">Fiche Odoo</a>`:""}</div></div>
+      ${it.attempts?`<span class="ph-try">Essai ${it.attempts+1}/3</span>`:""}</div>
+    ${banner}
+    <div class="ph-num">${IS_DESK()?`<span class="tabular" id="ph-tel">${esc(phFmt(tel)||it.phone)}</span><button class="btn ghost sm" id="ph-copy">Copier</button>`:`<a class="btn block rp-call" href="tel:${esc(tel)}">Appeler ${esc(phFmt(tel)||it.phone)}</a>`}</div>
+    ${c.name||c.email||c.phone?`<div class="co-sub">Contact : <b>${esc([c.civ,c.name].filter(Boolean).join(" "))}</b>${c.role?" · "+esc(c.role):""}${c.phone?" · "+esc(c.phone):""}${c.email?" · "+esc(c.email):""}</div>`:""}
+    ${it.info?`<details class="ph-info"><summary>Infos du fichier</summary><div>${esc(it.info).replace(/\n/g,"<br>")}</div></details>`:""}
+    ${(it.history||[]).length?`<div class="ph-hist">${it.history.slice(-3).reverse().map(h=>`<div><span class="co-sub">${esc(fmtDate(h.at))} · ${esc(h.by)}</span> ${esc(h.t)}${h.n?` — <i>${esc(h.n)}</i>`:""}</div>`).join("")}</div>`:""}
+    <label class="f">Note d'appel<textarea id="ph-note" class="ph-note" placeholder="Ce qui a été dit (reprise dans Odoo si RDV ou rappel Odoo)">${esc(PH.note||"")}</textarea></label>
+    <div class="ph-acts">
+      <button class="btn ghost" data-r="nrp">Ne répond pas<small>${it.attempts>=2?"→ injoignable":"Rappel "+nextWorkLabel()}</small></button>
+      <button class="btn ghost" data-r="msg">Message laissé<small>${it.attempts>=2?"→ injoignable":"Rappel dans 2 jours"}</small></button>
+      <button class="btn ghost" data-p="contact">Bon interlocuteur<small>Contact + rappel</small></button>
+      <button class="btn ghost" data-p="mail">${it.kind==="mail"?"Pas reçu → renvoyer":"Veut un mail"}<small>${it.kind==="mail"?"Rouvre le mail":"Mail type + relance J+7"}</small></button>
+      <button class="btn ghost ok-t" data-p="rdv">RDV pris<small>Agenda Odoo</small></button>
+      <button class="btn ghost" data-p="rappel">Rappeler le…<small>Phoning ou Odoo</small></button>
+      <button class="btn ghost" data-p="equipe">Déjà équipé<small>Rappel avant échéance</small></button>
+      <button class="btn ghost danger-t" data-p="retrait">Retirer<small>Avec un motif</small></button>
+    </div>
+    <div id="ph-panel"></div>
+    <div class="row" style="justify-content:space-between;margin-top:6px"><button class="linkbtn" id="ph-skip">Passer (garder pour plus tard)</button><span class="co-sub tabular" id="ph-cnt">${phCounts()}</span></div>
+  </div>`;
+  $("#ph-note").oninput=e=>PH.note=e.target.value;
+  if($("#ph-copy")) $("#ph-copy").onclick=()=>{ navigator.clipboard?.writeText(phFmt(tel)).then(()=>toast("Numéro copié")).catch(()=>{}); };
+  m.querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>phSend({result:b.dataset.r}));
+  m.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{ PH.panel = PH.panel===b.dataset.p ? "" : b.dataset.p; m.querySelectorAll("[data-p]").forEach(x=>x.classList.toggle("on", x.dataset.p===PH.panel)); phPanel(); });
+  $("#ph-skip").onclick=()=>phSend({result:"passe"});
+  if(PH.panel) phPanel();
+}
+function phCounts(){ const n=PH.sess?.n||{}; const tot=Object.entries(n).filter(([k])=>k!=="passe").reduce((s,[,v])=>s+v,0); return `${tot} appel${tot>1?"s":""} · ${n.rdv||0} RDV · ${(n.mail||0)} mail${(n.mail||0)>1?"s":""}`; }
+
+/* Champs du contact (repris dans tous les panneaux) */
+function phContactFields(req){ const c=PH.cur.contact||{};
+  return `<div class="ph-grid">
+    <label class="f">Civilité<select id="pc-civ"><option value=""></option><option ${c.civ==="Madame"?"selected":""}>Madame</option><option ${c.civ==="Monsieur"?"selected":""}>Monsieur</option></select></label>
+    <label class="f">Nom${req.name?" *":""}<input id="pc-name" value="${esc(c.name||"")}" autocomplete="off"></label>
+    <label class="f">Fonction<input id="pc-role" value="${esc(c.role||"")}" autocomplete="off"></label>
+    <label class="f">Téléphone direct<input id="pc-phone" type="tel" value="${esc(c.phone||"")}" autocomplete="off"></label>
+    <label class="f" style="grid-column:1/-1">E-mail${req.email?" *":""}<input id="pc-email" type="email" value="${esc(c.email||"")}" autocapitalize="off" autocomplete="off"></label></div>`; }
+const phContact = () => ({civ:$("#pc-civ")?.value||"", name:($("#pc-name")?.value||"").trim(), role:($("#pc-role")?.value||"").trim(), phone:($("#pc-phone")?.value||"").trim(), email:($("#pc-email")?.value||"").trim()});
+const phCibleField = (withHors) => `<div class="f" style="font-size:12.5px;color:var(--muted);font-weight:600">Cible *<div class="sol" id="pc-cible" style="margin-top:5px"><button type="button" data-c="pme">PME</button><button type="button" data-c="strategique">Compte stratégique</button>${withHors?`<button type="button" data-c="horscible">Hors cible</button>`:""}</div></div>`;
+function phBindCible(onChange){ document.querySelectorAll("#pc-cible [data-c]").forEach(b=>b.onclick=()=>{ document.querySelectorAll("#pc-cible [data-c]").forEach(x=>x.setAttribute("aria-pressed", x===b)); phErr(""); onChange&&onChange(b.dataset.c); }); }
+const phCible = () => document.querySelector('#pc-cible [aria-pressed="true"]')?.dataset.c || "";
+const phErr = m => { const e=$("#pc-err"); if(e){ e.textContent=m; e.hidden=!m; } return false; };
+const phEmailOk = e => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
+
+function phPanel(){
+  const p=$("#ph-panel"); if(!p) return; const it=PH.cur; if(!PH.panel){ p.innerHTML=""; return; }
+  const k=PH.panel;
+  if(k==="retrait"){
+    p.innerHTML=`<div class="ph-pan"><b>Retirer ce numéro — motif</b><div class="ph-motifs">${PH_MOTIFS.map(m=>`<button class="btn ghost" data-m="${m.k}">${esc(m.label)}<small>${esc(m.sub)}</small></button>`).join("")}</div></div>`;
+    p.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>phSend({result:"retrait", motif:b.dataset.m}));
+    return;
+  }
+  if(k==="rappel"||k==="contact"||k==="equipe"){
+    const title = k==="contact" ? "Bon interlocuteur identifié" : k==="equipe" ? "Déjà équipé — rappel avant la fin du contrat" : "Rappeler le…";
+    p.innerHTML=`<div class="ph-pan stack"><b>${title}</b>
+      ${k==="equipe"?`<div class="ph-grid"><label class="f">Fournisseur actuel<input id="pe-f" autocomplete="off"></label><label class="f">Fin de contrat<input id="pe-fin" type="month"></label></div>`:""}
+      ${phContactFields({name:k==="contact"})}
+      <div class="ph-grid"><label class="f">Date du rappel *<input id="pr-d" type="date" min="${todayYMD()}" value="${k==="equipe"?todayYMD(180):ymdOf(nextWorkDay())}"></label><label class="f">Heure<input id="pr-h" type="time" step="900"></label></div>
+      <div class="f" style="font-size:12.5px;color:var(--muted);font-weight:600">Où garder ce rappel ?
+        <label class="ph-opt"><input type="radio" name="pr-dest" value="phoning" checked><span><b>Dans le phoning</b> (par défaut)<small>Revient en tête de file à la date. Rien dans Odoo.</small></span></label>
+        <label class="ph-opt"><input type="radio" name="pr-dest" value="odoo"><span><b>Dans Odoo</b><small>${it.partner_id?"Fiche existante":"Fiche créée (contrôle de doublon)"} + contact + activité « Appeler » → écran Rappels.</small></span></label></div>
+      <div id="pr-odoo" hidden>${phCibleField(true)}<div class="co-sub" id="pr-hc" hidden>Hors cible : aucune fiche n'est créée. Gardez le rappel dans le phoning ou retirez le numéro.</div></div>
+      <div class="err" id="pc-err" hidden></div>
+      <button class="btn block" id="pr-go">Enregistrer · numéro suivant</button></div>`;
+    if(k==="equipe") $("#pe-fin").onchange=e=>{ const v=e.target.value; if(!v) return; const d=new Date(v+"-01T12:00"); d.setMonth(d.getMonth()-3); const ymd=ymdOf(d); $("#pr-d").value = ymd<todayYMD()?todayYMD(7):ymd; };
+    document.querySelectorAll('[name="pr-dest"]').forEach(r=>r.onchange=()=>{ $("#pr-odoo").hidden = document.querySelector('[name="pr-dest"]:checked').value!=="odoo"; });
+    phBindCible(c=>{ $("#pr-hc").hidden=c!=="horscible"; });
+    $("#pr-go").onclick=()=>{ const c=phContact(), d=$("#pr-d").value, dest=document.querySelector('[name="pr-dest"]:checked').value, cible=phCible();
+      if(k==="contact" && !c.name) return phErr("Nom de l'interlocuteur obligatoire");
+      if(!d) return phErr("Date du rappel obligatoire");
+      if(c.email && !phEmailOk(c.email)) return phErr("E-mail invalide");
+      if(dest==="odoo" && !cible) return phErr("Choisissez la cible pour enregistrer dans Odoo");
+      if(dest==="odoo" && cible==="horscible") return phErr("Hors cible : pas de fiche Odoo. Gardez le rappel dans le phoning ou retirez le numéro.");
+      phSend({result:k, date:d, heure:$("#pr-h").value||"", dest, cible, contact:c, equipe:k==="equipe"?{fournisseur:$("#pe-f").value.trim(), fin:$("#pe-fin").value}:undefined}); };
+    return;
+  }
+  if(k==="rdv"){
+    p.innerHTML=`<div class="ph-pan stack"><b>RDV pris</b>
+      ${phContactFields({name:true, email:true})}
+      <div class="ph-grid"><label class="f">Date du RDV *<input type="date" id="pd-d" min="${todayYMD()}"></label><label class="f">Heure *<input type="time" id="pd-h" step="900"></label>
+      <label class="f">Durée<select id="pd-dur"><option value="0.5">30 min</option><option value="1" selected>1 h</option><option value="1.5">1 h 30</option><option value="2">2 h</option></select></label>${rdvCatField("pd-cat")}</div>
+      ${phCibleField(false)}
+      <div class="co-sub">RDV « RDV TRIMARG x ${esc(it.name)} » dans votre agenda Odoo, contact en participant, sans texte. ${it.partner_id?"Fiche Odoo existante.":"Fiche Odoo créée (contrôle de doublon)."} L'invitation part de votre Outlook.</div>
+      <div class="err" id="pc-err" hidden></div>
+      <button class="btn block" id="pd-go">Créer le RDV · numéro suivant</button></div>`;
+    fillRdvCat("pd-cat"); phBindCible();
+    $("#pd-go").onclick=()=>{ const c=phContact(), d=$("#pd-d").value, h=$("#pd-h").value, cible=phCible();
+      if(!c.name) return phErr("Nom du contact obligatoire"); if(!phEmailOk(c.email)) return phErr("E-mail du contact obligatoire (adresse valide)");
+      if(!d||!h) return phErr("Date et heure du RDV obligatoires"); const dt=new Date(d+"T"+h); if(isNaN(dt)||dt<new Date()) return phErr("Le RDV doit être dans le futur");
+      if(!cible) return phErr("Choisissez la cible (PME ou Compte stratégique)");
+      phSend({result:"rdv", contact:c, cible, rdv:{start:dt.toISOString(), duree:+$("#pd-dur").value||1, categ:rdvCatVal("pd-cat")}}); };
+    return;
+  }
+  if(k==="mail"){
+    const mails=PH.mails||[]; const prods=[...new Set(mails.map(m=>m.produit||"Général"))];
+    const prev=it.mail&&it.mail.template_id;
+    p.innerHTML=`<div class="ph-pan stack"><b>${it.kind==="mail"?"Renvoyer le mail":"Envoyer une information"}</b>
+      ${phContactFields({email:true})}
+      ${prods.length>1?`<div class="sol" id="pm-prod"><button type="button" aria-pressed="true" data-pr="">Tous</button>${prods.map(x=>`<button type="button" data-pr="${esc(x)}">${esc(x)}</button>`).join("")}</div>`:""}
+      <div class="ph-tpls" id="pm-list">${mails.map(m=>`<label class="ph-opt" data-prod="${esc(m.produit||"Général")}"><input type="radio" name="pm-t" value="${m.id}" ${prev===m.id?"checked":""}><span><b>${esc(m.titre)}</b><small>${esc([m.produit,m.interlocuteur,m.contexte].filter(Boolean).join(" · "))}</small></span></label>`).join("")}
+        <label class="ph-opt"><input type="radio" name="pm-t" value="manuel" ${!mails.length?"checked":""}><span><b>Aucun ne convient</b><small>Mail à écrire après la session (tâche « Mails à faire »).</small></span></label></div>
+      <div id="pm-prev"></div>
+      <label class="f" id="pm-noteb" hidden>Ce que le mail doit contenir<input id="pm-note" placeholder="Ex. tarifs copieur A3, plaquette Monétique…"></label>
+      <div class="co-sub">Relance automatique dans 7 jours dans cette liste : « Avez-vous bien reçu mon mail ? »</div>
+      <div class="err" id="pc-err" hidden></div>
+      <button class="btn block" id="pm-go">Ouvrir dans Outlook · numéro suivant</button></div>`;
+    const sel=()=>document.querySelector('[name="pm-t"]:checked')?.value||"";
+    const upd=()=>{ const v=sel(), m=mails.find(x=>String(x.id)===v);
+      $("#pm-noteb").hidden = v!=="manuel"; $("#pm-go").textContent = v==="manuel" ? "Enregistrer (mail à faire) · numéro suivant" : "Ouvrir dans Outlook · numéro suivant";
+      $("#pm-prev").innerHTML = m ? (()=>{ const x=phMailBuild(m, phContact()); return `<div class="ph-prev"><div><b>Objet :</b> ${esc(x.subject)}</div><div class="b">${esc(x.body)}</div></div>`; })() : ""; };
+    p.querySelectorAll('[name="pm-t"]').forEach(r=>r.onchange=upd); ["pc-civ","pc-name","pc-email"].forEach(id=>{ const e=document.getElementById(id); if(e) e.oninput=e.onchange=upd; });
+    p.querySelectorAll("#pm-prod [data-pr]").forEach(b=>b.onclick=()=>{ p.querySelectorAll("#pm-prod [data-pr]").forEach(x=>x.setAttribute("aria-pressed",x===b)); p.querySelectorAll("#pm-list [data-prod]").forEach(l=>l.hidden=!!b.dataset.pr&&l.dataset.prod!==b.dataset.pr); });
+    upd();
+    $("#pm-go").onclick=()=>{ const c=phContact(), v=sel();
+      if(!phEmailOk(c.email)) return phErr("E-mail du contact obligatoire (adresse valide)");
+      if(!v) return phErr("Choisissez un mail type, ou « Aucun ne convient »");
+      if(v==="manuel") return phSend({result:"mail", manuel:true, contact:c, mail_note:$("#pm-note").value.trim()});
+      const m=mails.find(x=>String(x.id)===v); const x=phMailBuild(m, c);
+      phOpenMail(c.email, x.subject, x.body);
+      phSend({result:"mail", template_id:m.id, contact:c}); };
+  }
+}
+/** Mail type → objet et texte (variables remplacées) ; le lien est ajouté en fin de texte s'il n'est pas placé */
+function phMailBuild(m, c){
+  const it=PH.cur||{};
+  const v={civilite:c.civ||"", contact:c.name||"", societe:it.name||"", commercial:odooAuth?.name||"", lien:m.lien||"", date_appel:new Date().toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"})};
+  const fill=t=>String(t||"").replace(/\{(\w+)\}/g,(a,k)=>k in v?v[k]:a).replace(/[ \t]{2,}/g," ").replace(/ +([,.])/g,"$1");
+  let body=fill(m.corps);
+  if(m.lien && !/\{lien\}/.test(m.corps||"")) body+="\n\n"+(m.lien_label?m.lien_label+" : ":"")+m.lien;
+  return {subject:fill(m.objet), body};
+}
+function phOpenMail(to, subject, body){
+  const u=`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject||"")}&body=${encodeURIComponent(String(body||"").replace(/\r?\n/g,"\r\n"))}`;
+  const a=document.createElement("a"); a.href=u; a.style.display="none"; document.body.appendChild(a); a.click(); setTimeout(()=>a.remove(),500);
+}
+
+/* Envoi d'un résultat : enregistré au relais, puis numéro suivant (doublons Odoo : choix de la fiche) */
+async function phSend(body, extra){
+  if(PH.busy) return; const it=PH.cur; if(!it) return;
+  PH.busy=true; document.querySelectorAll("#ph-main button").forEach(b=>b.disabled=true);
+  const op = (PH.op && PH.op.id===it.id && PH.op.r===body.result) ? PH.op.op : uid();
+  PH.op={id:it.id, r:body.result, op};
+  const note=($("#ph-note")?.value||"").trim();
+  try{
+    const r=await relay("/phoning/result",{method:"POST",body:{id:it.id, op, notes:note, ...body, ...(extra||{})}});
+    if(r.doublons){ PH.busy=false; document.querySelectorAll("#ph-main button").forEach(b=>b.disabled=false); return phDoublons(r.doublons, body); }
+    if(!r.ok){ throw new Error((r.erreurs||[]).join(" ; ")||"Odoo : enregistrement incomplet, réessayez"); }
+    const n=PH.sess.n; const k = body.result==="contact"||body.result==="equipe" ? "rappel" : body.result; n[k]=(n[k]||0)+1;
+    if(body.result==="rdv") PH.sess.rdv.push({name:it.name, t:r.label, url:r.odoo?.url||"", contact:body.contact});
+    if(r.odoo) PH.sess.odoo++;
+    if(body.result==="passe") PH.skipped.add(it.id); else PH.queue=PH.queue.filter(x=>x.id!==it.id);
+    if(r.item && r.item.state==="todo" && body.result!=="passe" && (!r.item.next_at || r.item.next_at<=new Date().toISOString())) PH.queue.push(r.item);
+    if(r.item && r.item.state==="todo" && r.item.next_at && r.item.next_at>new Date().toISOString()) { PH.later=[...PH.later.filter(x=>x.id!==it.id), r.item].sort((a,b)=>a.next_at.localeCompare(b.next_at)); }
+    toast(body.result==="passe" ? "Passé : il reviendra en fin de file" : (r.label||"Enregistré")+(r.odoo?.creation?" · fiche Odoo créée":""));
+    PH.note=""; PH.op=null; PH.busy=false;
+    if(PH.queue.filter(x=>!PH.skipped.has(x.id)).length<3) await phRefresh(false);
+    await phNext();
+  }catch(e){
+    PH.busy=false; document.querySelectorAll("#ph-main button").forEach(b=>b.disabled=false);
+    if(!phErr(e.message)) {} toast(e.message);
+  }
+}
+function phDoublons(list, body){
+  const p=$("#ph-panel");
+  p.insertAdjacentHTML("afterbegin",`<div class="ph-pan warn" id="ph-dbl"><b>Fiche Odoo proche trouvée</b><div class="co-sub">Utilisez la fiche existante pour éviter un doublon dans Odoo.</div>
+    ${list.map(d=>`<div class="row" style="align-items:center;justify-content:space-between;margin-top:6px"><span><b>${esc(d.name)}</b> <span class="co-sub">${esc(d.raison)}${d.ville?" · "+esc(d.ville):""}</span></span><button class="btn sm" data-pid="${d.id}">Utiliser cette fiche</button></div>`).join("")}
+    <button class="btn ghost sm" id="dbl-new" style="margin-top:8px">Créer quand même une nouvelle fiche</button></div>`);
+  p.querySelectorAll("[data-pid]").forEach(b=>b.onclick=()=>{ $("#ph-dbl").remove(); phSend(body,{partner_id:+b.dataset.pid}); });
+  $("#dbl-new").onclick=()=>{ $("#ph-dbl").remove(); phSend(body,{force:true}); };
+  p.scrollIntoView({block:"nearest"});
+}
+
+/* ---------- Fin de session : bilan, invitations à envoyer, mails à faire ---------- */
+async function phEnd(){
+  if(PH.cur) relay("/phoning/lock",{method:"POST",body:{id:PH.cur.id, release:true}}).catch(()=>{});
+  PH.cur=null; $("#modal").classList.remove("ph-wide");
+  const s=PH.sess||{n:{},rdv:[]}; const n=s.n;
+  let todo=[]; try{ todo=(await relay("/phoning/mailtodo")).items||[]; }catch(e){}
+  const tot=Object.entries(n).filter(([k])=>k!=="passe").reduce((a,[,v])=>a+v,0);
+  const tile=(l,v,cls="")=>`<div class="ph-tile"><span>${l}</span><b class="${cls}">${v||0}</b></div>`;
+  openModal({title:"Fin de session", left:"Fermer", onLeft:()=>{ closeModal(); loadPhoning(); }, html:`<div class="stack">
+    <div class="co-name" style="font-size:18px;margin:0">${esc(s.list||"")}</div>
+    <div class="ph-tiles">${tile("Appels",tot)}${tile("RDV",n.rdv,"ok")}${tile("Mails",n.mail)}${tile("Rappels",n.rappel)}${tile("Sans réponse",(n.nrp||0)+(n.msg||0))}${tile("Retirés",n.retrait)}</div>
+    ${s.odoo?`<div class="co-sub">Odoo : ${s.odoo} enregistrement${s.odoo>1?"s":""} (RDV ou rappel).</div>`:`<div class="co-sub">Rien n'a été écrit dans Odoo pendant cette session.</div>`}
+    ${s.rdv.length?`<h2>Invitations à envoyer depuis Outlook</h2>${s.rdv.map(r=>`<div class="card"><b>${esc(r.name)}</b><div class="co-sub">${esc(r.t)}${r.contact?" · "+esc(r.contact.name)+" · "+esc(r.contact.email):""}</div></div>`).join("")}`:""}
+    <h2>Mails à faire</h2><div id="ph-todo">${phTodoHtml(todo)}</div>
+    <button class="btn block" id="ph-close">Terminer</button></div>`});
+  phTodoBind(todo);
+  $("#ph-close").onclick=()=>{ closeModal(); loadPhoning(); };
+  PH.sess=null;
+}
+function phTodoHtml(todo){ return todo.length ? todo.map((x,i)=>`<div class="card" style="margin-bottom:8px"><div class="rp-h"><b>${esc(x.name)}</b><span class="co-sub">${esc(x.list_name||"")}</span></div>
+    <div class="co-sub">${esc([[x.contact?.civ, x.contact?.name].filter(Boolean).join(" "), x.mail?.to||x.contact?.email||""].filter(Boolean).join(" · "))}${x.mail?.note?` — <i>${esc(x.mail.note)}</i>`:""}</div>
+    <div class="row" style="margin-top:6px"><button class="btn sm" data-tm="${i}">Écrire dans Outlook</button><button class="btn ghost sm" data-td="${i}">C'est fait</button></div></div>`).join("") : `<div class="co-sub">Aucun mail à écrire.</div>`; }
+function phTodoBind(todo){
+  document.querySelectorAll("[data-tm]").forEach(b=>b.onclick=()=>{ const x=todo[+b.dataset.tm]; const c=x.contact||{};
+    phOpenMail(x.mail?.to||c.email, `TRIMARG x ${x.name}`, `Bonjour ${[c.civ,c.name].filter(Boolean).join(" ")},\n\nSuite à notre échange téléphonique, `); });
+  document.querySelectorAll("[data-td]").forEach(b=>b.onclick=async()=>{ const x=todo[+b.dataset.td];
+    try{ await relay("/phoning/mailtodo/done",{method:"POST",body:{id:x.id}}); todo.splice(+b.dataset.td,1); $("#ph-todo").innerHTML=phTodoHtml(todo); phTodoBind(todo); }catch(e){ toast(e.message); } });
+}
+async function phMailTodoOpen(){
+  let todo=[]; try{ todo=(await relay("/phoning/mailtodo")).items||[]; }catch(e){ toast(e.message); return; }
+  openModal({title:"Mails à faire", left:"Fermer", onLeft:()=>{ closeModal(); loadPhoning(); }, html:`<div class="stack"><div class="co-sub">Mails demandés pendant le phoning pour lesquels aucun mail type ne convenait.</div><div id="ph-todo">${phTodoHtml(todo)}</div></div>`});
+  phTodoBind(todo);
+}
+
 /* ---------- Navigation & évènements ---------- */
 function setTab(t){
   document.querySelectorAll("#tabbar button").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===t));
-  ["map","visits","calls","settings"].forEach(s=>$("#scr-"+s).hidden = s!==t);
+  ["map","visits","calls","phoning","settings"].forEach(s=>$("#scr-"+s).hidden = s!==t);
   if(t==="map") setTimeout(()=>map.invalidateSize(),50);
   if(t==="calls") loadRappels();
+  if(t==="phoning") loadPhoning();
   closeSheet(); closeModal();
 }
 document.querySelectorAll("#tabbar button").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
@@ -2493,6 +3398,9 @@ $("#btn-list").onclick=openNearbyList;
 $("#btn-here").onclick=searchHere;
 $("#btn-cafe").onclick=toggleCafes;
 $("#btn-idea").onclick=openIdeaForm;
+$("#ph-import").onclick=phImport;
+$("#ph-mailtodo").onclick=phMailTodoOpen;
+$("#ph-arch").onclick=()=>{ PH.archived=!PH.archived; $("#ph-arch").textContent=PH.archived?"Listes en cours":"Listes archivées"; loadPhoning(); };
 $("#btn-my-ideas").onclick=openMyIdeas;
 $("#btn-all-ideas").onclick=openAllIdeas;
 $("#btn-legend").onclick=openLegend;
@@ -2520,7 +3428,7 @@ window.addEventListener("offline",()=>toast("Hors ligne : les visites restent en
   if(IS_TEST){ document.body.insertAdjacentHTML("beforeend",`<div class="testband">TEST · ${VERSION}</div>`); document.title="Prospection TEST"; }
   initMap(); renderRadius(); renderSector();
   await loadVisits(); refreshAll();
-  if(!odooAuth) showLogin(); else { odooRefreshStatus(); odooCheckSession(); flushOutbox(); loadRappels(); loadEtiquettes(); sharedRefresh(true); flushIdeas(); }
+  if(!odooAuth) showLogin(); else { odooRefreshStatus(); odooCheckSession(); flushOutbox(); loadRappels(); phBadge(); loadEtiquettes(); sharedRefresh(true); flushIdeas(); }
   renderOutbox(); saveIdeasPending();
   $("#btn-cafe").classList.toggle("on", !!settings.cafes);
   startGeoloc();

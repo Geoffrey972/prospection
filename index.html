@@ -548,7 +548,7 @@ label.f textarea.ph-note{min-height:64px}
    - Carte : Leaflet + OpenStreetMap
    - Stockage : IndexedDB sur l'appareil (aucun serveur)
    ===================================================================== */
-const VERSION = "2.13.0";
+const VERSION = "2.14.0";
 /* Environnement : l'app servie dans un dossier /test/ parle au relais de test et garde ses propres données */
 const IS_TEST = /\/test\//.test(location.pathname);
 /** Stockage local : en test, toutes les clés sont préfixées (même site que la prod) */
@@ -3166,7 +3166,7 @@ function phRender(){
         ${it.siren?` · <a href="https://annuaire-entreprises.data.gouv.fr/entreprise/${esc(it.siren)}" target="_blank" rel="noopener">Annuaire</a>`:""}${it.partner_id&&odooAuth.odooUrl?` · <a href="${esc(odooAuth.odooUrl.replace(/\/+$/,""))}/odoo/contacts/${+it.partner_id}" target="_blank" rel="noopener">Fiche Odoo</a>`:""}</div></div>
       ${it.attempts?`<span class="ph-try">Essai ${it.attempts+1}/3</span>`:""}</div>
     ${banner}
-    <div class="ph-num">${IS_DESK()?`<span class="tabular" id="ph-tel">${esc(phFmt(tel)||it.phone)}</span><button class="btn ghost sm" id="ph-copy">Copier</button>`:`<a class="btn block rp-call" href="tel:${esc(tel)}">Appeler ${esc(phFmt(tel)||it.phone)}</a>`}</div>
+    <div class="ph-num"><a class="btn rp-call" style="flex:1" href="tel:${esc(tel)}">Appeler ${esc(phFmt(tel)||it.phone)}</a>${IS_DESK()?`<button class="btn ghost sm" id="ph-copy">Copier</button>`:""}</div>
     ${c.name||c.email||c.phone?`<div class="co-sub">Contact : <b>${esc([c.civ,c.name].filter(Boolean).join(" "))}</b>${c.role?" · "+esc(c.role):""}${c.phone?" · "+esc(c.phone):""}${c.email?" · "+esc(c.email):""}</div>`:""}
     ${it.info?`<details class="ph-info"><summary>Infos du fichier</summary><div>${esc(it.info).replace(/\n/g,"<br>")}</div></details>`:""}
     ${(it.history||[]).length?`<div class="ph-hist">${it.history.slice(-3).reverse().map(h=>`<div><span class="co-sub">${esc(fmtDate(h.at))} · ${esc(h.by)}</span> ${esc(h.t)}${h.n?` — <i>${esc(h.n)}</i>`:""}</div>`).join("")}</div>`:""}
@@ -3191,7 +3191,9 @@ function phRender(){
   $("#ph-skip").onclick=()=>phSend({result:"passe"});
   if(PH.panel) phPanel();
 }
-function phCounts(){ const n=PH.sess?.n||{}; const tot=Object.entries(n).filter(([k])=>k!=="passe").reduce((s,[,v])=>s+v,0); return `${tot} appel${tot>1?"s":""} · ${n.rdv||0} RDV · ${(n.mail||0)} mail${(n.mail||0)>1?"s":""}`; }
+/* Appel abouti = un interlocuteur a répondu (tout sauf sans réponse, mauvais numéro, société fermée, autre retrait, passer) */
+function phAbouti(b){ if(["contact","mail","rdv","rappel","equipe"].includes(b.result)) return true; return b.result==="retrait" && ["interet","horscible","nepas"].includes(b.motif); }
+function phCounts(){ const n=PH.sess?.n||{}; const tot=Object.entries(n).filter(([k])=>k!=="passe").reduce((s,[,v])=>s+v,0); const ab=PH.sess?.abouti||0; return `${tot} appel${tot>1?"s":""} · ${ab} abouti${ab>1?"s":""} · ${n.rdv||0} RDV · ${(n.mail||0)} mail${(n.mail||0)>1?"s":""}`; }
 
 /* Champs du contact (repris dans tous les panneaux) */
 function phContactFields(req){ const c=PH.cur.contact||{};
@@ -3312,6 +3314,7 @@ async function phSend(body, extra){
     if(r.doublons){ PH.busy=false; document.querySelectorAll("#ph-main button").forEach(b=>b.disabled=false); return phDoublons(r.doublons, body); }
     if(!r.ok){ throw new Error((r.erreurs||[]).join(" ; ")||"Odoo : enregistrement incomplet, réessayez"); }
     const n=PH.sess.n; const k = body.result==="contact"||body.result==="equipe" ? "rappel" : body.result; n[k]=(n[k]||0)+1;
+    if(phAbouti(body)) PH.sess.abouti=(PH.sess.abouti||0)+1;
     if(body.result==="rdv") PH.sess.rdv.push({name:it.name, t:r.label, url:r.odoo?.url||"", contact:body.contact});
     if(r.odoo) PH.sess.odoo++;
     if(body.result==="passe") PH.skipped.add(it.id); else PH.queue=PH.queue.filter(x=>x.id!==it.id);
@@ -3342,11 +3345,14 @@ async function phEnd(){
   PH.cur=null; $("#modal").classList.remove("ph-wide");
   const s=PH.sess||{n:{},rdv:[]}; const n=s.n;
   let todo=[]; try{ todo=(await relay("/phoning/mailtodo")).items||[]; }catch(e){}
-  const tot=Object.entries(n).filter(([k])=>k!=="passe").reduce((a,[,v])=>a+v,0);
+  const tot=Object.entries(n).filter(([k])=>k!=="passe").reduce((a,[,v])=>a+v,0), ab=s.abouti||0;
+  const pct=(a,b)=>b?Math.round(100*a/b)+" %":"—";
   const tile=(l,v,cls="")=>`<div class="ph-tile"><span>${l}</span><b class="${cls}">${v||0}</b></div>`;
   openModal({title:"Fin de session", left:"Fermer", onLeft:()=>{ closeModal(); loadPhoning(); }, html:`<div class="stack">
     <div class="co-name" style="font-size:18px;margin:0">${esc(s.list||"")}</div>
-    <div class="ph-tiles">${tile("Appels",tot)}${tile("RDV",n.rdv,"ok")}${tile("Mails",n.mail)}${tile("Rappels",n.rappel)}${tile("Sans réponse",(n.nrp||0)+(n.msg||0))}${tile("Retirés",n.retrait)}</div>
+    <div class="ph-tiles">${tile("Appels passés",tot)}${tile("Appels aboutis",ab)}${tile("RDV pris",n.rdv,"ok")}</div>
+    <div class="co-sub">${tot?`Taux d'aboutissement : <b>${pct(ab,tot)}</b> · RDV / appels aboutis : <b>${pct(n.rdv||0,ab)}</b>`:"Aucun appel pendant cette session."}</div>
+    <div class="ph-tiles">${tile("Mails",n.mail)}${tile("Rappels",n.rappel)}${tile("Sans réponse",(n.nrp||0)+(n.msg||0))}${tile("Retirés",n.retrait)}</div>
     ${s.odoo?`<div class="co-sub">Odoo : ${s.odoo} enregistrement${s.odoo>1?"s":""} (RDV ou rappel).</div>`:`<div class="co-sub">Rien n'a été écrit dans Odoo pendant cette session.</div>`}
     ${s.rdv.length?`<h2>Invitations à envoyer depuis Outlook</h2>${s.rdv.map(r=>`<div class="card"><b>${esc(r.name)}</b><div class="co-sub">${esc(r.t)}${r.contact?" · "+esc(r.contact.name)+" · "+esc(r.contact.email):""}</div></div>`).join("")}`:""}
     <h2>Mails à faire</h2><div id="ph-todo">${phTodoHtml(todo)}</div>
